@@ -46,19 +46,28 @@ export function selectReplyRotation(type, args = {}, dryRun = false) {
     const last = context.history.at(-1);
     const replyIndex = replacesReply && last && !last.is_user && !last.is_system
         ? context.history.length - 1 : context.history.length;
-    selection = { context, turns: countReplies(context, replyIndex), historyLength: context.history.length };
+    selection = {
+        context,
+        turns: countReplies(context, replyIndex),
+        historyLength: context.history.length,
+        // A new reply is appended (streaming pushes it before any text arrives); a replaced one is not.
+        appendsReply: !(replacesReply && last && !last.is_user && !last.is_system),
+    };
     return true;
 }
 
 /**
- * A selection describes one reply. It ends when that reply lands (GENERATION_ENDED resets it) or,
- * failing that, once the history has grown past the length it was made for.
+ * A selection describes one reply and lasts until that reply has landed (GENERATION_ENDED or
+ * GENERATION_STOPPED resets it). As a fallback it also ends once the history has grown beyond
+ * that reply: the appended reply itself still belongs to the selection while it is the last message.
  * @param {ReturnType<typeof currentContext>} context
  */
 function selectionIsCurrent(context) {
-    return Boolean(selection)
-        && context.history.length <= selection.historyLength
-        && Object.keys(context).every(key => context[key] === selection.context[key]);
+    if (!selection || !Object.keys(context).every(key => context[key] === selection.context[key])) return false;
+    const grown = context.history.length - selection.historyLength;
+    if (grown <= 0) return true;
+    const tail = context.history.at(-1);
+    return grown === 1 && selection.appendsReply && Boolean(tail) && !tail.is_user;
 }
 
 /**

@@ -74,8 +74,9 @@ export async function init() {
 
     // A fresh chat load may reuse the same array and chat id; discard the old selection.
     eventSource.on(event_types.CHAT_CHANGED, resetReplyRotation);
-    // Once the reply has landed, everything evaluated afterwards belongs to the next turn.
+    // Once the reply has landed (or the generation was stopped), everything evaluated afterwards belongs to the next turn.
     eventSource.on(event_types.GENERATION_ENDED, resetReplyRotation);
+    if (event_types.GENERATION_STOPPED) eventSource.on(event_types.GENERATION_STOPPED, resetReplyRotation);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerationDirective);
     // Also inject once now and once the app is ready, so it's present for the first generation.
     eventSource.on(event_types.APP_INITIALIZED, () => {
