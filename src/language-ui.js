@@ -31,6 +31,12 @@ export function createLanguageEditor(entity, onChange) {
     fields.appendChild(enabledLabel);
 
     const commit = () => {
+        // Never write over storage that changed underneath the editor (e.g. a persona backup restore).
+        const key = getLanguageProfileKey(entity);
+        if (!key || key !== panel.dataset.profileKey || panel.dataset.stored !== JSON.stringify(getLanguagePreferences(entity, key))) {
+            refreshLanguageEditor(entity);
+            return;
+        }
         const profile = { enabled: enabled.checked };
         for (const { key } of LANGUAGE_FIELDS) {
             profile[key] = fields.querySelector(`[data-language-key="${key}"]`).value;
@@ -39,6 +45,7 @@ export function createLanguageEditor(entity, onChange) {
             refreshLanguageEditor(entity);
             return;
         }
+        panel.dataset.stored = JSON.stringify(getLanguagePreferences(entity, key));
         onChange();
     };
     enabled.addEventListener('change', commit);
@@ -80,6 +87,7 @@ export function refreshLanguageEditor(entity, hasContext = true) {
     panel.dataset.profileKey = key;
     panel.querySelector('fieldset').disabled = !key;
     const profile = getLanguagePreferences(entity, key);
+    panel.dataset.stored = JSON.stringify(profile);
     panel.querySelector('.sbcl-language-enabled').checked = profile.enabled;
     for (const { key: field } of LANGUAGE_FIELDS) {
         const input = panel.querySelector(`[data-language-key="${field}"]`);

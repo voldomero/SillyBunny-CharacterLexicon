@@ -18,6 +18,7 @@ import {
     pronounPresets,
     multiPresets,
     emptyContainer,
+    normalizeContainer,
     getContainer,
     setContainer,
     getCurrentPersonaId,
@@ -93,24 +94,27 @@ function editorEntityKey(entity) {
 }
 
 /**
- * Whether the editor was rendered for the entity it would write to now.
+ * Whether the editor was rendered for the entity it would write to now, and storage has not
+ * changed underneath it since (a persona backup restore replaces descriptors without any event).
  * @param {'persona'|'character'} entity
  * @returns {boolean}
  */
 function editorIsCurrent(entity) {
     const root = document.getElementById(editorId(entity));
     const key = editorEntityKey(entity);
-    return Boolean(root && key && root.dataset.entityKey === key);
+    return Boolean(root && key && root.dataset.entityKey === key
+        && root.dataset.stored === JSON.stringify(getContainer(entity)));
 }
 
 /** Persists the editor's current DOM state and refreshes derived state. */
 function commit(entity) {
-    // A stale editor (rendered for another entity, or for none) must never be written out.
+    // A stale editor must never be written out; show what is actually stored instead.
     if (!editorIsCurrent(entity)) {
         refreshEditor(entity);
         return;
     }
     setContainer(entity, readContainerFromDom(entity));
+    document.getElementById(editorId(entity)).dataset.stored = JSON.stringify(getContainer(entity));
     refreshDirectives();
     updateTooltips(entity);
 }
@@ -322,13 +326,21 @@ function refreshEditor(entity) {
     const root = document.getElementById(editorId(entity));
     if (!root) return;
     const key = editorEntityKey(entity);
-    root.dataset.entityKey = key;
     const container = key ? getContainer(entity) : emptyContainer();
-    renderSets(entity, container.sets);
-    const modeSel = root.querySelector('.sbcl-mode');
-    if (modeSel) modeSel.value = container.mode;
-    const dirSel = root.querySelector('.sbcl-directive');
-    if (dirSel) dirSel.value = container.directive;
+    const stored = JSON.stringify(container);
+    // PERSONA_UPDATED fires on every description keystroke: keep the rows (including an unfilled
+    // "Add set" row) when nothing the editor shows has changed underneath it.
+    const unchanged = root.dataset.entityKey === key && root.dataset.stored === stored
+        && JSON.stringify(normalizeContainer(readContainerFromDom(entity))) === stored;
+    root.dataset.entityKey = key;
+    root.dataset.stored = stored;
+    if (!unchanged) {
+        renderSets(entity, container.sets);
+        const modeSel = root.querySelector('.sbcl-mode');
+        if (modeSel) modeSel.value = container.mode;
+        const dirSel = root.querySelector('.sbcl-directive');
+        if (dirSel) dirSel.value = container.directive;
+    }
     setEditorEnabled(root, Boolean(key));
     refreshLanguageEditor(entity, Boolean(key));
     updateTooltips(entity);
