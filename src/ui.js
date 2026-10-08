@@ -7,7 +7,7 @@
  */
 
 import { eventSource, event_types, menu_type } from '../../../../../script.js';
-import { t } from '../../../../../scripts/i18n.js';
+import { t, translate } from '../../../../../scripts/i18n.js';
 import { renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { EXTENSION_ASSET_PATH, EXTENSION_NAME } from './identity.js';
 import {
@@ -129,9 +129,10 @@ function createSetRow(entity, set) {
     const row = document.createElement('div');
     row.className = 'sbcl-set flex-container';
 
-    FIELD_META.forEach(({ key, placeholder }) => {
+    FIELD_META.forEach(({ key, label, placeholder }) => {
         const cell = document.createElement('div');
         cell.className = 'sbcl-cell flex1';
+        cell.dataset.label = translate(label); // shown per field on narrow screens
         const input = document.createElement('input');
         input.className = 'text_pole';
         input.type = 'text';
@@ -204,7 +205,7 @@ function buildEditor(entity) {
         const cell = document.createElement('div');
         cell.className = 'sbcl-cell flex1';
         const lbl = document.createElement('span');
-        lbl.textContent = t`${label}`;
+        lbl.textContent = translate(label);
         const ic = document.createElement('i');
         ic.className = 'fa-solid fa-circle-info opacity50p sbcl-field-info';
         ic.dataset.key = key;

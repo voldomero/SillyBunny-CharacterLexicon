@@ -1,4 +1,4 @@
-import { t } from '../../../../../scripts/i18n.js';
+import { t, translate } from '../../../../../scripts/i18n.js';
 import {
     LANGUAGE_FIELDS, getLanguageProfileKey, getLanguagePreferences, setLanguagePreferences,
 } from './language.js';
@@ -54,13 +54,13 @@ export function createLanguageEditor(entity, onChange) {
         const fieldLabel = document.createElement('label');
         fieldLabel.className = 'sbcl-language-field';
         const labelText = document.createElement('span');
-        labelText.textContent = t`${label}`;
+        labelText.textContent = translate(label);
         const input = document.createElement('textarea');
         input.className = 'text_pole';
         input.rows = 2;
         input.dataset.languageKey = key;
         input.id = `${panel.id}_${key}`;
-        input.placeholder = t`${placeholder}`;
+        input.placeholder = translate(placeholder);
         fieldLabel.htmlFor = input.id;
         input.addEventListener('input', commit);
         fieldLabel.append(labelText, input);
