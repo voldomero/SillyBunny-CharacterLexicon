@@ -5,12 +5,16 @@
 import { power_user } from '../../../../../scripts/power-user.js';
 import { t } from '../../../../../scripts/i18n.js';
 import * as extensionsModule from '../../../../extensions.js';
+import { PERSONA_HANDOFF } from './pronouns.js';
 
 /**
  * Both predecessors register the same macro names and write the same persona field. Each resolves
  * its templates against its own folder name, so an install is found by that name.
  */
 export const LEGACY_EXTENSION_NAMES = Object.freeze(['SillyBunny-Pronouns', 'SillyTavern-Pronouns']);
+
+/** Predecessors that store the persona field as the same set list this extension writes. */
+const MULTI_SET_PREDECESSORS = new Set(['SillyBunny-Pronouns']);
 
 const PERSISTENT_TOAST = Object.freeze({ timeOut: 0, extendedTimeOut: 0, closeButton: true, preventDuplicates: true });
 
@@ -41,6 +45,15 @@ export function getLegacyExtensionState() {
         if (state.enabled) enabled.push(name);
     }
     return { installed, enabled };
+}
+
+/**
+ * @param {{ installed: string[] }} state From getLegacyExtensionState().
+ * @returns {'keep'|'flatten'|'delete'} What `clean` does with the persona `pronoun` field.
+ */
+export function personaPronounHandoff(state) {
+    if (state.installed.some(name => MULTI_SET_PREDECESSORS.has(name))) return PERSONA_HANDOFF.KEEP;
+    return state.installed.length ? PERSONA_HANDOFF.FLATTEN : PERSONA_HANDOFF.DELETE;
 }
 
 /** @param {string[]} names The enabled predecessors. */

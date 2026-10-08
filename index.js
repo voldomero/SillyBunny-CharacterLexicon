@@ -19,6 +19,7 @@ import { event_types, eventSource, saveSettingsDebounced } from '../../../../scr
 import { EXTENSION_ID, EXTENSION_NAME } from './src/identity.js';
 import {
     getLegacyExtensionState,
+    personaPronounHandoff,
     warnLegacyExtensionEnabled,
     isMacroEngineEnabled,
     warnMacroEngineDisabled,
@@ -95,7 +96,7 @@ export async function clean() {
     clearDirectives();
     resetReplyRotation();
     clearPersonaLanguagePreferences();
-    // The persona `pronoun` field predates this extension; leave it to an installed predecessor.
-    await cleanAllPronounData({ keepPersonaPronouns: getLegacyExtensionState().installed.length > 0 });
+    // The persona `pronoun` field predates this extension; an installed predecessor gets it in a shape it reads.
+    await cleanAllPronounData({ personaPronouns: personaPronounHandoff(getLegacyExtensionState()) });
     console.debug(`[${EXTENSION_NAME}] Clean complete.`);
 }

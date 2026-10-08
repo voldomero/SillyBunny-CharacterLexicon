@@ -554,19 +554,35 @@ export function setsFromPreset(presetKey) {
 // Cleanup
 // ---------------------------------------------------------------------------
 
+/** What `clean` does with the persona `pronoun` field, which predates this extension. */
+export const PERSONA_HANDOFF = Object.freeze({
+    /** A predecessor that stores the same set list stays installed. */
+    KEEP: 'keep',
+    /** Only upstream SillyTavern-Pronouns stays installed; it reads five flat fields and cannot see a set list. */
+    FLATTEN: 'flatten',
+    /** Nothing left reads the field. */
+    DELETE: 'delete',
+});
+
 /**
  * Removes all data this extension added:
- *  - the `pronoun` field from every persona descriptor, unless the predecessor still reads it
+ *  - the `pronoun` field from every persona descriptor, or hands it over per `personaPronouns`
  *  - the extension's own settings (including stored character pronouns), retaining
  *    an empty import guard when a legacy settings backup exists
  * Uses a direct (non-debounced) save so cleanup persists before any reload.
- * @param {{ keepPersonaPronouns?: boolean }} [options]
+ * @param {{ personaPronouns?: 'keep'|'flatten'|'delete' }} [options]
  */
-export async function cleanAllPronounData({ keepPersonaPronouns = false } = {}) {
-    if (!keepPersonaPronouns && power_user?.persona_descriptions) {
+export async function cleanAllPronounData({ personaPronouns = PERSONA_HANDOFF.DELETE } = {}) {
+    if (personaPronouns !== PERSONA_HANDOFF.KEEP && power_user?.persona_descriptions) {
         for (const descriptor of Object.values(power_user.persona_descriptions)) {
-            if (descriptor && 'pronoun' in descriptor) {
+            if (!descriptor || typeof descriptor !== 'object' || !('pronoun' in descriptor)) continue;
+            if (personaPronouns === PERSONA_HANDOFF.DELETE) {
                 delete descriptor.pronoun;
+            } else if (Array.isArray(descriptor.pronoun?.sets)) {
+                // A flat field is already readable upstream and stays as it is; a set list becomes its first set.
+                const first = normalizeContainer(descriptor.pronoun).sets[0];
+                if (first) descriptor.pronoun = first;
+                else delete descriptor.pronoun;
             }
         }
     }
