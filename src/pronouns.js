@@ -543,8 +543,9 @@ export async function cleanAllPronounData({ keepPersonaPronouns = false } = {}) 
             }
         }
     }
-    if (Object.hasOwn(extension_settings, LEGACY_EXTENSION_KEY)) {
+    if (Object.hasOwn(extension_settings, LEGACY_EXTENSION_KEY) && Object.hasOwn(extension_settings, EXTENSION_KEY)) {
         // Keep the backup untouched, but prevent reinstalling from silently reimporting cleared preferences.
+        // A store that never existed (cleaned while dormant) has imported nothing yet, so leave the import open.
         extension_settings[EXTENSION_KEY] = {};
     } else {
         delete extension_settings[EXTENSION_KEY];
