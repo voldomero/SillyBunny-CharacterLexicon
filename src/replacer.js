@@ -19,6 +19,66 @@ import {
 /** Disambiguation precedence: a word that fits several fields maps to the earliest here. */
 const PRECEDENCE = Object.freeze(['reflexive', 'posPro', 'objective', 'posDet', 'subjective']);
 
+/**
+ * Words that commonly follow an object pronoun ("told her that", "gave him a"); an ambiguous
+ * her/his/its directly before one of these is not read as a determiner.
+ */
+const NOT_A_DETERMINER_BEFORE = new Set([
+    'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'so', 'yet', 'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with',
+    'from', 'into', 'onto', 'about', 'over', 'under', 'after', 'before', 'until', 'since', 'while', 'when',
+    'if', 'that', 'this', 'these', 'those', 'as', 'than', 'then', 'there', 'here', 'too', 'very', 'also',
+    'again', 'away', 'back', 'down', 'up', 'out', 'off', 'not', 'no', 'what', 'who', 'whom', 'which', 'how',
+    'why', 'where', 'because', 'though', 'although', 'whether', 'do', 'does', 'did', 'is', 'are', 'was',
+    'were', 'be', 'been', 'being', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may',
+    'might', 'must', 'go', 'come', 'like', 'well', 'now', 'just', 'even', 'only', 'still', 'already', 'once',
+    'all', 'both', 'each', 'every', 'some', 'any', 'more', 'most', 'much', 'many', 'something', 'anything',
+    'nothing', 'everything', 'someone', 'anyone', 'everyone', 'he', 'she', 'it', 'they', 'we', 'you', 'i',
+    'him', 'them', 'us', 'me', 'her', 'his', 'its', 'their', 'my', 'your', 'our',
+]);
+
+/** Clause openers after which a bare "it" is read as the subject rather than the object. */
+const SUBJECT_AFTER = new Set([
+    'and', 'but', 'or', 'nor', 'so', 'yet', 'that', 'when', 'if', 'because', 'while', 'as', 'then', 'until',
+    'though', 'although', 'since', 'where', 'which', 'whether', 'unless', 'think', 'thought', 'know', 'knew',
+    'said', 'say', 'says', 'hope', 'wish', 'believe', 'guess', 'sure', 'maybe', 'perhaps', 'now', 'there', 'here',
+]);
+
+const WORD = String.raw`[\p{L}\p{N}'\u2019-]+`;
+const nextWordRe = new RegExp(String.raw`^\s+(${WORD})`, 'u');
+const prevWordRe = new RegExp(String.raw`(${WORD})\s+$`, 'u');
+const openerRe = /(?:^|[.!?;:()[\]"\u201c\u201d\u2014-])\s*$/u;
+
+/** @param {string} text @param {number} end End offset of the matched word */
+function readsAsDeterminer(text, end) {
+    const next = nextWordRe.exec(text.slice(end));
+    return Boolean(next) && !NOT_A_DETERMINER_BEFORE.has(next[1].toLowerCase());
+}
+
+/** @param {string} text @param {number} start Start offset of the matched word */
+function readsAsSubject(text, start) {
+    const before = text.slice(0, start);
+    if (openerRe.test(before)) return true;
+    const prev = prevWordRe.exec(before);
+    return Boolean(prev) && SUBJECT_AFTER.has(prev[1].toLowerCase());
+}
+
+/**
+ * Picks the field an ambiguous word stands for at this position: her/his/its before a noun is
+ * a determiner, "it" opening a clause is the subject; otherwise the precedence order decides.
+ * @param {Map<string, string>} byKey key -> macro token, in precedence order
+ * @param {string} text
+ * @param {number} start
+ * @param {number} end
+ * @returns {string}
+ */
+function pickField(byKey, text, start, end) {
+    const first = byKey.keys().next().value;
+    if (byKey.size < 2) return first;
+    if (byKey.has('posDet') && readsAsDeterminer(text, end)) return 'posDet';
+    if (byKey.has('subjective') && byKey.has('objective') && readsAsSubject(text, start)) return 'subjective';
+    return first;
+}
+
 const PRIMARY_MACRO = Object.freeze({
     persona: {
         subjective: 'pronounSubjective',
@@ -68,27 +128,30 @@ function pickShorthandAlias(pronounKey, value) {
 }
 
 /**
- * Builds a lowercase word -> macro-token map for a container, honoring precedence.
+ * Builds, for every distinct lowercase word across a container's sets, the fields it can stand
+ * for (e.g. "her" -> objective and posDet) and the macro token for each, in precedence order.
  * @param {import('./pronouns.js').PronounContainer} container
  * @param {{ useShorthands?: boolean, entity?: 'persona'|'character' }} [options]
- * @returns {Map<string, string>}
+ * @returns {Map<string, Map<string, string>>} word -> (key -> macro token)
  */
 function buildWordMacroMap(container, { useShorthands = false, entity = 'persona' } = {}) {
-    /** @type {Map<string, string>} */
+    /** @type {Map<string, Map<string, string>>} */
     const map = new Map();
     for (const key of PRECEDENCE) {
         for (const set of container?.sets ?? []) {
             const value = String(set[key] ?? '').trim();
             if (!value) continue;
             const lower = value.toLowerCase();
-            if (map.has(lower)) continue; // first (highest-precedence) wins
+            const byKey = map.get(lower) ?? new Map();
+            if (byKey.has(key)) continue;
 
             let macroName = getPrimaryMacroName(key, entity);
             if (useShorthands && entity === 'persona') {
                 const alias = pickShorthandAlias(key, value);
                 if (alias) macroName = alias;
             }
-            map.set(lower, `{{${macroName}}}`);
+            byKey.set(key, `{{${macroName}}}`);
+            map.set(lower, byKey);
         }
     }
     return map;
@@ -120,7 +183,11 @@ export function replacePronounsWithMacros(text, { useShorthands = false, entity 
     const alternation = Array.from(wordMacro.keys()).map(escapeForRegex).join('|');
     if (!alternation) return text;
     const re = new RegExp(`\\b(${alternation})\\b`, 'gi');
-    return text.replace(re, (m) => wordMacro.get(m.toLowerCase()) || m);
+    return text.replace(re, (m, _word, offset) => {
+        const byKey = wordMacro.get(m.toLowerCase());
+        if (!byKey) return m;
+        return byKey.get(pickField(byKey, text, offset, offset + m.length)) || m;
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -197,7 +264,7 @@ export async function openPronounReplacePopup(initialText = null, { defaultUseSh
         const wordMacro = buildWordMacroMap(container, { useShorthands, entity });
         if (wordMacro.size === 0) return '';
         return Array.from(wordMacro.entries())
-            .map(([word, macro]) => `<tr><td>${escapeHtml(word)}</td><td>→</td><td>${escapeHtml(macro)}</td></tr>`)
+            .map(([word, byKey]) => `<tr><td>${escapeHtml(word)}</td><td>→</td><td>${escapeHtml(Array.from(byKey.values()).join(' / '))}</td></tr>`)
             .join('');
     }
 
