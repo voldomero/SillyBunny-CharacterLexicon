@@ -15,7 +15,7 @@
  *    out of the card file so chatting with a card never mutates someone else's card.
  */
 
-import { saveSettingsDebounced, saveSettings, user_avatar, this_chid } from '../../../../../script.js';
+import { saveSettingsDebounced, saveSettings, user_avatar, this_chid, menu_type } from '../../../../../script.js';
 import { power_user } from '../../../../../scripts/power-user.js';
 import { extension_settings } from '../../../../extensions.js';
 import { getCharaFilename } from '../../../../utils.js';
@@ -394,7 +394,7 @@ export function getCharacterContainer() {
  */
 export function setCharacterContainer(container) {
     const key = getCurrentCharacterKey();
-    if (!key) return;
+    if (!key || !canWriteCharacter()) return;
     const serialized = serializeContainer(container);
     const store = ensureCharacterStore();
     if (serialized.sets.length === 0 && serialized.directive === DIRECTIVE_OVERRIDE.DEFAULT && serialized.mode === MODES.ROTATE) {
@@ -424,9 +424,18 @@ export function setContainer(entity, container) {
     else setPersonaContainer(container);
 }
 
-/** @param {Entity} entity @returns {boolean} Whether the entity has a usable id/context. */
+/**
+ * The Create New Character form keeps this_chid on the previously selected card, so writes
+ * made while it is open would land on that card.
+ * @returns {boolean}
+ */
+export function canWriteCharacter() {
+    return menu_type !== 'create';
+}
+
+/** @param {Entity} entity @returns {boolean} Whether the entity can be read and written right now. */
 export function hasEntityContext(entity) {
-    return entity === 'character' ? Boolean(getCurrentCharacterKey()) : Boolean(getCurrentPersonaId());
+    return entity === 'character' ? Boolean(getCurrentCharacterKey()) && canWriteCharacter() : Boolean(getCurrentPersonaId());
 }
 
 // ---------------------------------------------------------------------------

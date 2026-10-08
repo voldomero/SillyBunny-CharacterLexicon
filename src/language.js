@@ -1,7 +1,7 @@
 import { characters, this_chid, user_avatar, saveSettingsDebounced } from '../../../../../script.js';
 import { power_user } from '../../../../../scripts/power-user.js';
 import { selected_group, groups } from '../../../../../scripts/group-chats.js';
-import { ensureSettings, settingKeys } from './pronouns.js';
+import { ensureSettings, settingKeys, canWriteCharacter } from './pronouns.js';
 
 export const PERSONA_LANGUAGE_KEY = 'sillybunny_language_preferences';
 
@@ -44,7 +44,7 @@ export function getLanguagePreferences(entity, key = getLanguageProfileKey(entit
 /** expectedKey prevents a stale editor event from saving into a newly selected profile. */
 export function setLanguagePreferences(entity, raw, expectedKey = getLanguageProfileKey(entity)) {
     const key = getLanguageProfileKey(entity);
-    if (!key || key !== expectedKey) return false;
+    if (!key || key !== expectedKey || (entity === 'character' && !canWriteCharacter())) return false;
     const profile = normalizeLanguagePreferences(raw);
     const empty = profile.enabled && LANGUAGE_FIELDS.every(field => !profile[field.key].trim());
     if (entity === 'character') {
