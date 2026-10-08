@@ -16,6 +16,11 @@ import {
     shorthandAliases,
 } from './pronouns.js';
 
+/** @param {'persona'|'character'} entity @returns {string} The translated noun for messages. */
+function entityLabel(entity) {
+    return entity === 'character' ? t`character` : t`persona`;
+}
+
 /** Disambiguation precedence: a word that fits several fields maps to the earliest here. */
 const PRECEDENCE = Object.freeze(['reflexive', 'posPro', 'objective', 'posDet', 'subjective']);
 
@@ -251,7 +256,7 @@ export function replacePronounsWithMacros(text, { useShorthands = false, entity 
     if (!c || (c.sets?.length ?? 0) === 0) {
         toastr.warning(container
             ? t`No pronoun values provided. Cannot replace.`
-            : t`No pronouns are set for the active ${entity}. Set them first to enable replacement.`);
+            : t`No pronouns are set for the active ${entityLabel(entity)}. Set them first to enable replacement.`);
         return text;
     }
 
@@ -323,7 +328,7 @@ export async function openPronounReplacePopup(initialText = null, { defaultUseSh
 
     const container = getContainer(entity);
     if (!container || (container.sets?.length ?? 0) === 0) {
-        toastr.warning(t`No pronouns are set for the active ${entity}. Set them first to enable the replacer.`);
+        toastr.warning(t`No pronouns are set for the active ${entityLabel(entity)}. Set them first to enable the replacer.`);
         return '';
     }
 
@@ -348,7 +353,7 @@ export async function openPronounReplacePopup(initialText = null, { defaultUseSh
 
     const content = `
         <h3>${t`Pronoun Replacer`}</h3>
-        <p>${t`Converts direct pronoun words into macros for the active ${entity}. All macros use the same pronoun set for each reply.`}</p>
+        <p>${t`Converts direct pronoun words into macros for the active ${entityLabel(entity)}. All macros use the same pronoun set for each reply.`}</p>
         <table class="pronoun-replacer-table">
             <thead><tr><th>${t`Word`}</th><th></th><th>${t`Macro`}</th></tr></thead>
             <tbody>${buildTable()}</tbody>

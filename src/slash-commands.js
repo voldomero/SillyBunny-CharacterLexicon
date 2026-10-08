@@ -62,6 +62,11 @@ function resolveEntity(value) {
     return String(value ?? '').trim().toLowerCase() === 'character' ? 'character' : 'persona';
 }
 
+/** @param {'persona'|'character'} entity @returns {string} The translated noun for toasts. */
+function entityLabel(entity) {
+    return entity === 'character' ? t`character` : t`persona`;
+}
+
 /** Re-render editors and re-inject directives after a programmatic change. */
 function afterChange() {
     refreshDirectives();
@@ -126,7 +131,7 @@ export function registerSlashCommands() {
                 if (!PRONOUN_KEYS.includes(key)) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to set pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to set pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -186,7 +191,7 @@ export function registerSlashCommands() {
                 if (sets.length === 0) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to set pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to set pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -228,7 +233,7 @@ export function registerSlashCommands() {
                 if (!pronounPresets[key]) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to add pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to add pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -272,7 +277,7 @@ export function registerSlashCommands() {
                 if (!Object.values(MODES).includes(mode)) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to set the pronoun mode for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to set the pronoun mode for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -302,7 +307,7 @@ export function registerSlashCommands() {
             try {
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to clear pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to clear pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
