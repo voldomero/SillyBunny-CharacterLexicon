@@ -101,7 +101,7 @@ export function registerSlashCommands() {
                 typeList: [ARGUMENT_TYPE.STRING], enumList: ENTITY_ENUMS, forceEnum: true,
             }),
             SlashCommandNamedArgument.fromProps({
-                name: 'index', description: 'Which set to edit (0-based, default 0). An index past the last set appends one new set.',
+                name: 'index', description: 'Which set to edit (0-based, default 0). An index past the last set fills that set\'s empty field or appends one new set.',
                 typeList: [ARGUMENT_TYPE.NUMBER],
             }),
         ],
@@ -130,13 +130,22 @@ export function registerSlashCommands() {
                     return '';
                 }
                 const container = getContainer(entity);
-                // Empty sets are never stored, so padding to a far index would collapse on save and
-                // split one set across several calls. Append at most one set instead.
-                const index = Math.min(Math.max(0, Math.trunc(Number(args.index) || 0)), container.sets.length);
-                if (index === container.sets.length) container.sets.push({ ...defaultSet });
+                const requested = Math.max(0, Math.trunc(Number(args.index) || 0));
+                // Empty sets are never stored, so an index past the end cannot be padded to. Consecutive
+                // calls that build one set field by field must land on the same set: a trailing set whose
+                // field is still empty takes the value, otherwise one new set is appended.
+                let index = requested;
+                if (requested >= container.sets.length) {
+                    const last = container.sets.at(-1);
+                    if (last && PRONOUN_KEYS.some(field => !last[field]) && !last[key]) index = container.sets.length - 1;
+                    else { container.sets.push({ ...defaultSet }); index = container.sets.length - 1; }
+                }
                 container.sets[index][key] = String(value ?? '');
                 setContainer(entity, container);
                 afterChange();
+                if (index !== requested) {
+                    toastr.info(t`Set ${requested} does not exist yet; wrote to set ${index} instead.`, 'Character Lexicon');
+                }
                 return String(value ?? '');
             } catch (error) {
                 toastr.error(String(error?.message ?? error), 'Character Lexicon');
