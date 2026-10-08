@@ -11,6 +11,8 @@ import { ensureSettings, settingKeys } from './pronouns.js';
 import { PERSONA_LANGUAGE_KEY } from './language.js';
 
 const PERSONA_FIELDS = ['pronoun', PERSONA_LANGUAGE_KEY];
+/** Bracket assignment with these would alter the store object itself rather than add a record. */
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 /** @param {string} avatar @returns {string} The avatar filename without its extension. */
 function stem(avatar) {
@@ -25,7 +27,7 @@ function stem(avatar) {
  * @returns {boolean} Whether anything changed.
  */
 function moveRecord(store, from, to) {
-    if (!store || typeof store !== 'object' || !from || !to || from === to || !Object.hasOwn(store, from)) return false;
+    if (!store || typeof store !== 'object' || !from || !to || from === to || RESERVED_KEYS.has(to) || !Object.hasOwn(store, from)) return false;
     store[to] = store[from];
     delete store[from];
     return true;
