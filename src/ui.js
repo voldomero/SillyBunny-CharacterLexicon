@@ -160,7 +160,10 @@ function createSetRow(entity, set) {
 
 /** Appends a set row to the editor and persists. */
 function addSetRow(entity, set) {
-    if (!editorIsCurrent(entity)) return;
+    if (!editorIsCurrent(entity)) {
+        refreshEditor(entity);
+        return;
+    }
     const setsContainer = document.getElementById(editorId(entity))?.querySelector('.sbcl-sets');
     if (!setsContainer) return;
     setsContainer.appendChild(createSetRow(entity, set ?? { ...defaultSet }));
@@ -261,7 +264,10 @@ function buildEditor(entity) {
         btn.textContent = label;
         btn.title = t`Replace all sets with ${label}`;
         btn.addEventListener('click', () => {
-            if (!editorIsCurrent(entity)) return;
+            if (!editorIsCurrent(entity)) {
+                refreshEditor(entity);
+                return;
+            }
             renderSets(entity, multiPresets[key].map((p) => ({ ...pronounPresets[p] })));
             commit(entity);
         });
@@ -309,7 +315,9 @@ function buildEditor(entity) {
     replacerBtn.textContent = t`Replacer`;
     replacerBtn.title = t`Open the pronoun replacer for this ${who}`;
     replacerBtn.addEventListener('click', () => {
-        if (editorIsCurrent(entity)) openPronounReplacePopup(null, { entity });
+        // The popup reads storage, so a stale editor only needs to catch up first.
+        if (!editorIsCurrent(entity)) refreshEditor(entity);
+        if (editorEntityKey(entity)) openPronounReplacePopup(null, { entity });
     });
     opts.appendChild(replacerBtn);
 
