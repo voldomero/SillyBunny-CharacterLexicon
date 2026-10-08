@@ -27,6 +27,8 @@ export function createLanguageEditor(entity, onChange) {
     const enabled = document.createElement('input');
     enabled.type = 'checkbox';
     enabled.className = 'sbcl-language-enabled';
+    // The character editor sits inside form#form_create; Enter on a focused checkbox would save the card.
+    enabled.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
     enabledLabel.append(enabled, document.createTextNode(t`Use these preferences in prompts`));
     fields.appendChild(enabledLabel);
 
