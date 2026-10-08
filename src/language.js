@@ -71,9 +71,16 @@ function terms(value) {
     });
 }
 
+const ZERO_WIDTH_SPACE = '\u200b';
+
 function quoted(value) {
-    // JSON unicode escapes keep authored terms and card names out of the host macro engine.
-    return JSON.stringify(value).replace(/[<>{}]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    // Terms stay literal for the model. Only what the host substitutes is broken up: {{macros}}
+    // and the legacy <USER>/<BOT>/<CHAR>/<GROUP> markers get a zero-width space so they no longer match.
+    const safe = String(value)
+        .replace(/\{\{/g, `{${ZERO_WIDTH_SPACE}{`)
+        .replace(/\}\}/g, `}${ZERO_WIDTH_SPACE}}`)
+        .replace(/<(?=(?:user|bot|char|group|charifnotgroup)>)/gi, `<${ZERO_WIDTH_SPACE}`);
+    return `\u201c${safe}\u201d`;
 }
 
 /** owner is a trusted user/char macro or an already-quoted card name. */
