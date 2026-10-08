@@ -258,6 +258,10 @@ export function registerSlashCommands() {
                 const mode = String(modeName ?? '').trim().toLowerCase();
                 if (!Object.values(MODES).includes(mode)) return '';
                 const entity = resolveEntity(args.target);
+                if (!hasEntityContext(entity)) {
+                    toastr.warning(t`No active ${entity} to set the pronoun mode for.`, 'Character Lexicon');
+                    return '';
+                }
                 const container = getContainer(entity);
                 container.mode = mode;
                 setContainer(entity, container);
@@ -284,6 +288,10 @@ export function registerSlashCommands() {
         callback: (args) => {
             try {
                 const entity = resolveEntity(args.target);
+                if (!hasEntityContext(entity)) {
+                    toastr.warning(t`No active ${entity} to clear pronouns for.`, 'Character Lexicon');
+                    return '';
+                }
                 const container = getContainer(entity);
                 container.sets = [];
                 setContainer(entity, container);
