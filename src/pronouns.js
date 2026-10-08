@@ -255,10 +255,29 @@ const defaultSettings = Object.freeze({
 const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
 const UPSTREAM_EXTENSION_KEY = 'sillytavern-pronouns';
 const UPSTREAM_IMPORTED_KEYS = [settingKeys.ENABLE_SHORTHANDS, settingKeys.ENABLE_WYVERN_COMPAT, settingKeys.ENABLE_JANITOR_COMPAT];
+/** Key names upstream used before 2.1, in the order its own migration applies them; a current key always wins. */
+const UPSTREAM_LEGACY_KEYS = Object.freeze({
+    enablePersonaShorthands: settingKeys.ENABLE_SHORTHANDS,
+    enableWyvernShorthands: settingKeys.ENABLE_SHORTHANDS,
+    enableJanitorShorthands: settingKeys.ENABLE_JANITOR_COMPAT,
+});
 
 /** @param {any} value @returns {boolean} */
 function isPlainObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Upstream SillyTavern-Pronouns shares only the alias toggles; persona sets already live on the descriptors.
+ * @param {Record<string, any>} upstream
+ * @returns {Record<string, any>}
+ */
+function importUpstreamSettings(upstream) {
+    const imported = Object.fromEntries(UPSTREAM_IMPORTED_KEYS.filter(key => key in upstream).map(key => [key, upstream[key]]));
+    for (const [legacyKey, key] of Object.entries(UPSTREAM_LEGACY_KEYS)) {
+        if (legacyKey in upstream && !(key in imported)) imported[key] = upstream[legacyKey];
+    }
+    return imported;
 }
 
 /**
@@ -271,9 +290,8 @@ export function ensureSettings(version = null) {
         const legacy = extension_settings[LEGACY_EXTENSION_KEY];
         const upstream = extension_settings[UPSTREAM_EXTENSION_KEY];
         // Copy once, including custom fields. Never merge a stale backup into an existing store.
-        // Upstream SillyTavern-Pronouns shares only the alias toggles; persona sets already live on the descriptors.
         extension_settings[EXTENSION_KEY] = isPlainObject(legacy) ? structuredClone(legacy)
-            : isPlainObject(upstream) ? Object.fromEntries(UPSTREAM_IMPORTED_KEYS.filter(key => key in upstream).map(key => [key, upstream[key]]))
+            : isPlainObject(upstream) ? importUpstreamSettings(upstream)
                 : {};
     }
     if (!extension_settings[EXTENSION_KEY] || typeof extension_settings[EXTENSION_KEY] !== 'object'
