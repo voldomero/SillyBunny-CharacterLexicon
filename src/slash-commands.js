@@ -101,7 +101,7 @@ export function registerSlashCommands() {
                 typeList: [ARGUMENT_TYPE.STRING], enumList: ENTITY_ENUMS, forceEnum: true,
             }),
             SlashCommandNamedArgument.fromProps({
-                name: 'index', description: 'Which set to edit (0-based, default 0). Higher sets are created as needed.',
+                name: 'index', description: 'Which set to edit (0-based, default 0). An index past the last set appends one new set.',
                 typeList: [ARGUMENT_TYPE.NUMBER],
             }),
         ],
@@ -129,9 +129,11 @@ export function registerSlashCommands() {
                     toastr.warning(t`No active ${entity} to set pronouns for.`, 'Character Lexicon');
                     return '';
                 }
-                const index = Math.max(0, Math.trunc(Number(args.index) || 0));
                 const container = getContainer(entity);
-                while (container.sets.length <= index) container.sets.push({ ...defaultSet });
+                // Empty sets are never stored, so padding to a far index would collapse on save and
+                // split one set across several calls. Append at most one set instead.
+                const index = Math.min(Math.max(0, Math.trunc(Number(args.index) || 0)), container.sets.length);
+                if (index === container.sets.length) container.sets.push({ ...defaultSet });
                 container.sets[index][key] = String(value ?? '');
                 setContainer(entity, container);
                 afterChange();
@@ -146,6 +148,7 @@ export function registerSlashCommands() {
     // /pronouns-preset (replace all sets)
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'pronouns-preset',
+        aliases: ['pronouns-set-preset'],
         returns: 'The applied preset key, or empty string if not found.',
         namedArgumentList: [
             SlashCommandNamedArgument.fromProps({
