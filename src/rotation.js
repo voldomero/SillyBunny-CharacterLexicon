@@ -61,11 +61,27 @@ function selectionIsCurrent(context) {
         && Object.keys(context).every(key => context[key] === selection.context[key]);
 }
 
-/** Hold the selected position while the host builds the prompt or streams the response. */
-export function getRotationTurns() {
+/**
+ * Hold the selected position while the host builds the prompt or streams the response.
+ * @param {{ env?: { content?: string } }} [macroContext] The macro execution context, when called from a macro.
+ */
+export function getRotationTurns(macroContext = null) {
     const context = currentContext();
+    if (isRenderingFirstReply(context, macroContext)) return countReplies(context, 0);
     if (selectionIsCurrent(context)) return selection.turns;
     return countReplies(context);
+}
+
+/**
+ * The host substitutes message 0 in place while rendering it, before any chat event fires, so the
+ * only way to tell is that the text being evaluated is that message. Its position is 0, not 1.
+ * @param {ReturnType<typeof currentContext>} context
+ * @param {{ env?: { content?: string } }|null} macroContext
+ */
+function isRenderingFirstReply(context, macroContext) {
+    const content = macroContext?.env?.content;
+    const first = context.history[0];
+    return typeof content === 'string' && isVisibleReply(first) && content === first.mes;
 }
 
 export function resetReplyRotation() {
