@@ -13,6 +13,7 @@ import { resetReplyRotation } from './src/rotation.js';
 import { clearPersonaLanguagePreferences } from './src/language.js';
 import { applyMacroSettings, registerPreProcessors } from './src/macros.js';
 import { registerSlashCommands } from './src/slash-commands.js';
+import { registerDataEventListeners } from './src/data-events.js';
 import { refreshDirectives, clearDirectives, onGenerationDirective } from './src/directive.js';
 import { event_types, eventSource, saveSettingsDebounced } from '../../../../script.js';
 import { EXTENSION_ID, EXTENSION_NAME } from './src/identity.js';
@@ -52,6 +53,7 @@ export async function init() {
 
     await injectUI();
     registerEventListeners();
+    registerDataEventListeners();
     refreshEditors();
 
     registerSlashCommands();
