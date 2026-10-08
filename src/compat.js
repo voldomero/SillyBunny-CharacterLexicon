@@ -1,33 +1,53 @@
 /**
- * Compatibility guards: the predecessor extension and the host macro engine.
+ * Compatibility guards: the predecessor extensions and the host macro engine.
  */
 
 import { power_user } from '../../../../../scripts/power-user.js';
 import { t } from '../../../../../scripts/i18n.js';
 import * as extensionsModule from '../../../../extensions.js';
 
-/** The predecessor resolves its templates against this folder name, so an install is found by it. */
-export const LEGACY_EXTENSION_NAME = 'SillyBunny-Pronouns';
+/**
+ * Both predecessors register the same macro names and write the same persona field. Each resolves
+ * its templates against its own folder name, so an install is found by that name.
+ */
+export const LEGACY_EXTENSION_NAMES = Object.freeze(['SillyBunny-Pronouns', 'SillyTavern-Pronouns']);
 
 const PERSISTENT_TOAST = Object.freeze({ timeOut: 0, extendedTimeOut: 0, closeButton: true, preventDuplicates: true });
 
-/** @returns {{ installed: boolean, enabled: boolean }} */
-export function getLegacyExtensionState() {
+/**
+ * @param {string} name
+ * @returns {{ installed: boolean, enabled: boolean }}
+ */
+function getExtensionState(name) {
     if (typeof extensionsModule.findExtension === 'function') {
-        const found = extensionsModule.findExtension(LEGACY_EXTENSION_NAME);
+        const found = extensionsModule.findExtension(name);
         return { installed: Boolean(found), enabled: Boolean(found?.enabled) };
     }
     const context = globalThis.SillyTavern?.getContext?.();
-    if (!context?.getExtensionManifest?.(LEGACY_EXTENSION_NAME)) return { installed: false, enabled: false };
-    const wanted = LEGACY_EXTENSION_NAME.toLowerCase();
+    if (!context?.getExtensionManifest?.(name)) return { installed: false, enabled: false };
+    const wanted = name.toLowerCase();
     const disabled = (context.extensionSettings?.disabledExtensions ?? [])
-        .some(name => String(name).toLowerCase().replace(/^third-party\//, '') === wanted);
+        .some(entry => String(entry).toLowerCase().replace(/^third-party\//, '') === wanted);
     return { installed: true, enabled: !disabled };
 }
 
-export function warnLegacyExtensionEnabled() {
+/** @returns {{ installed: string[], enabled: string[] }} Predecessor names by state. */
+export function getLegacyExtensionState() {
+    const installed = [];
+    const enabled = [];
+    for (const name of LEGACY_EXTENSION_NAMES) {
+        const state = getExtensionState(name);
+        if (state.installed) installed.push(name);
+        if (state.enabled) enabled.push(name);
+    }
+    return { installed, enabled };
+}
+
+/** @param {string[]} names The enabled predecessors. */
+export function warnLegacyExtensionEnabled(names) {
+    const who = names.join(', ');
     toastr.warning(
-        t`SillyBunny-Pronouns is still enabled. Character Lexicon stays inactive until you disable SillyBunny-Pronouns and reload.`,
+        t`${who} is still enabled. Character Lexicon stays inactive until you disable ${who} and reload.`,
         'Character Lexicon',
         PERSISTENT_TOAST,
     );
