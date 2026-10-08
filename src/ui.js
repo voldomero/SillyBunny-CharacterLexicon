@@ -135,6 +135,8 @@ function createSetRow(entity, set) {
         input.placeholder = placeholder;
         input.value = set?.[key] ?? '';
         input.addEventListener('input', () => commit(entity));
+        // The character editor sits inside form#form_create; Enter would otherwise save (or create) the card.
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         cell.appendChild(input);
         row.appendChild(cell);
     });
