@@ -20,51 +20,128 @@ import {
 const PRECEDENCE = Object.freeze(['reflexive', 'posPro', 'objective', 'posDet', 'subjective']);
 
 /**
- * Words that commonly follow an object pronoun ("told her that", "gave him a"); an ambiguous
- * her/his/its directly before one of these is not read as a determiner.
+ * Closed-class words that cannot head the noun phrase a determiner introduces. An object pronoun
+ * ("her") directly before one of these is read as the object; anything else is read as a
+ * determiner, because card text names body parts, belongings and traits far more often than it
+ * places an adverb or a second object after the pronoun.
  */
 const NOT_A_DETERMINER_BEFORE = new Set([
-    'a', 'an', 'the', 'and', 'but', 'or', 'nor', 'so', 'yet', 'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with',
-    'from', 'into', 'onto', 'about', 'over', 'under', 'after', 'before', 'until', 'since', 'while', 'when',
-    'if', 'that', 'this', 'these', 'those', 'as', 'than', 'then', 'there', 'here', 'too', 'very', 'also',
-    'again', 'away', 'back', 'down', 'up', 'out', 'off', 'not', 'no', 'what', 'who', 'whom', 'which', 'how',
-    'why', 'where', 'because', 'though', 'although', 'whether', 'do', 'does', 'did', 'is', 'are', 'was',
-    'were', 'be', 'been', 'being', 'have', 'has', 'had', 'will', 'would', 'can', 'could', 'should', 'may',
-    'might', 'must', 'go', 'come', 'like', 'well', 'now', 'just', 'even', 'only', 'still', 'already', 'once',
-    'all', 'both', 'each', 'every', 'some', 'any', 'more', 'most', 'much', 'many', 'something', 'anything',
-    'nothing', 'everything', 'someone', 'anyone', 'everyone', 'he', 'she', 'it', 'they', 'we', 'you', 'i',
-    'him', 'them', 'us', 'me', 'her', 'his', 'its', 'their', 'my', 'your', 'our',
+    // determiners, quantifiers that do not follow a possessive, pronouns
+    'a', 'an', 'the', 'this', 'that', 'these', 'those', 'some', 'any', 'all', 'both', 'each', 'enough', 'more',
+    'much', 'less', 'several', 'another', 'no', 'what', 'which', 'whatever', 'whichever',
+    'he', 'she', 'it', 'they', 'we', 'you', 'i', 'him', 'them', 'us', 'me', 'her', 'his', 'its', 'their', 'my',
+    'your', 'our', 'mine', 'yours', 'theirs', 'hers', 'himself', 'herself', 'themselves', 'myself', 'yourself',
+    'something', 'anything', 'nothing', 'everything', 'someone', 'anyone', 'everyone', 'nobody', 'somebody',
+    'everybody',
+    // prepositions
+    'to', 'of', 'in', 'on', 'at', 'by', 'for', 'with', 'from', 'into', 'onto', 'about', 'over', 'under', 'after',
+    'before', 'until', 'since', 'through', 'across', 'around', 'toward', 'towards', 'against', 'between',
+    'among', 'along', 'behind', 'beside', 'beneath', 'below', 'above', 'without', 'within', 'upon', 'off',
+    'out', 'up', 'down', 'past', 'near', 'inside', 'outside',
+    // conjunctions and subordinators
+    'and', 'but', 'or', 'nor', 'so', 'yet', 'as', 'than', 'then', 'when', 'if', 'because', 'though', 'although',
+    'whether', 'while', 'unless', 'where', 'how', 'why', 'who', 'whom',
+    // adverbs and particles
+    'too', 'also', 'again', 'away', 'here', 'there', 'now', 'just', 'even', 'still', 'already', 'once', 'twice',
+    'often', 'never', 'always', 'sometimes', 'soon', 'later', 'earlier', 'afterwards', 'anyway', 'instead',
+    'alone', 'together', 'apart', 'aside', 'forward', 'forwards', 'backward', 'backwards', 'home', 'well',
+    'like', 'yesterday', 'today', 'tonight', 'tomorrow', 'not', 'yes',
+    // verb forms that are not also common nouns
+    'do', 'does', 'did', 'is', 'are', 'am', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having',
+    'will', 'would', 'can', 'could', 'should', 'may', 'might', 'must', 'shall', 'go', 'goes', 'going', 'gone',
+    'went', 'come', 'comes', 'coming', 'came', 'get', 'gets', 'got', 'getting', 'say', 'says', 'said', 'saying',
+    'know', 'knows', 'knew', 'known', 'seem', 'seems', 'seemed', 'stay', 'stays', 'stayed', 'sit', 'sits', 'sat',
+    'stand', 'stands', 'stood', 'leave', 'leaves', 'wait', 'waits', 'waited', 'try', 'tries', 'tried', 'speak',
+    'speaks', 'spoke', 'eat', 'eats', 'ate', 'breathe', 'breathes', 'breathed', 'become', 'becomes', 'became',
+    'feel', 'feels', 'felt', 'think', 'thinks', 'understand', 'understands', 'understood', 'remember',
+    'remembers', 'remembered', 'forget', 'forgets', 'forgot', 'realize', 'realise', 'believe', 'believes',
+    'believed', 'begin', 'begins', 'began', 'continue', 'continues', 'continued', 'finish', 'finishes',
+    'finished', 'die', 'dies', 'died', 'sing', 'sings', 'sang',
 ]);
 
-/** Clause openers after which a bare "it" is read as the subject rather than the object. */
+/** Words ending in -ly that are adjectives or nouns rather than adverbs ("her lovely face"). */
+const LY_NOT_ADVERB = new Set([
+    'only', 'lovely', 'lonely', 'early', 'family', 'belly', 'ally', 'holy', 'ugly', 'silly', 'friendly', 'elderly',
+    'lively', 'deadly', 'likely', 'unlikely', 'jelly', 'bully', 'folly', 'rally', 'tally', 'lily', 'chilly', 'curly',
+    'bubbly', 'jolly', 'oily', 'smelly', 'wobbly', 'wiggly', 'cuddly', 'prickly', 'sparkly', 'lowly', 'daily',
+    'weekly', 'monthly', 'yearly', 'orderly', 'costly', 'ghastly', 'ghostly', 'godly', 'homely', 'manly', 'womanly',
+    'worldly', 'motherly', 'fatherly', 'brotherly', 'sisterly', 'scholarly', 'cowardly', 'beastly', 'measly',
+    'surly', 'burly', 'portly', 'comely', 'timely', 'untimely', 'stately', 'saintly', 'princely', 'queenly',
+    'kingly', 'heavenly', 'hilly', 'woolly', 'fly', 'reply', 'supply', 'italy', 'july', 'melancholy', 'anomaly',
+    'assembly', 'monopoly', 'tally', 'gully', 'sully', 'dolly', 'polly', 'molly', 'holly', 'kelly', 'sally', 'emily',
+    'lily', 'willy', 'billy',
+]);
+
+/** A standalone possessive ("it is his", "his and hers") is followed by one of these or by nothing. */
+const STANDALONE_POSSESSIVE_BEFORE = new Set([
+    'and', 'or', 'but', 'nor', 'too', 'also', 'as', 'than', 'then', 'though', 'although', 'instead', 'alone',
+    'anyway', 'forever', 'now', 'again', 'to', 'for', 'by', 'until', 'once', 'if', 'when', 'while', 'because',
+    'so', 'yet', 'is', 'was', 'are', 'were', 'be', 'been', 'being', 'not', 'after', 'before', 'since', 'already',
+    'still',
+]);
+
+/** Clause openers after which a bare "it" is the subject. */
 const SUBJECT_AFTER = new Set([
     'and', 'but', 'or', 'nor', 'so', 'yet', 'that', 'when', 'if', 'because', 'while', 'as', 'then', 'until',
-    'though', 'although', 'since', 'where', 'which', 'whether', 'unless', 'think', 'thought', 'know', 'knew',
-    'said', 'say', 'says', 'hope', 'wish', 'believe', 'guess', 'sure', 'maybe', 'perhaps', 'now', 'there', 'here',
+    'though', 'although', 'since', 'where', 'which', 'whether', 'unless', 'sure', 'maybe', 'perhaps', 'now',
+    'there', 'here',
+]);
+
+/** Verb forms that follow a subject "it" ("it is", "I think it was", "said it would"). */
+const VERB_AFTER_SUBJECT = new Set([
+    'is', 'was', 'has', 'had', 'will', 'would', 'can', 'could', 'may', 'might', 'must', 'shall', 'should', 'does',
+    'did', 'isn\u2019t', 'wasn\u2019t', 'hasn\u2019t', 'hadn\u2019t', 'won\u2019t', 'wouldn\u2019t', 'can\u2019t',
+    'couldn\u2019t', 'doesn\u2019t', 'didn\u2019t', 'isn\'t', 'wasn\'t', 'hasn\'t', 'hadn\'t', 'won\'t',
+    'wouldn\'t', 'can\'t', 'couldn\'t', 'doesn\'t', 'didn\'t', 'seems', 'seemed', 'looks', 'looked', 'feels',
+    'felt', 'sounds', 'sounded', 'gets', 'got', 'goes', 'went', 'comes', 'came', 'takes', 'took', 'makes', 'made',
+    'needs', 'needed', 'wants', 'wanted', 'happens', 'happened', 'works', 'worked', 'means', 'meant', 'matters',
+    'mattered', 'hurts', 'hurt', 'helps', 'helped', 'becomes', 'became', 'remains', 'remained', 'stays', 'stayed',
+    'keeps', 'kept', 'turns', 'turned', 'moves', 'moved', 'falls', 'fell', 'grows', 'grew', 'lies', 'lay', 'sits',
+    'sat', 'stands', 'stood', 'rains', 'rained', 'snows', 'snowed', 'purrs', 'purred', 'growls', 'growled',
 ]);
 
 const WORD = String.raw`[\p{L}\p{N}'\u2019-]+`;
 const nextWordRe = new RegExp(String.raw`^\s+(${WORD})`, 'u');
 const prevWordRe = new RegExp(String.raw`(${WORD})\s+$`, 'u');
-const openerRe = /(?:^|[.!?;:()[\]"\u201c\u201d\u2014-])\s*$/u;
+const openerRe = /(?:^|[.!?;:,()[\]"\u201c\u201d\u2014-])\s*$/u;
+const contractionRe = /^['\u2019](?:s|ll|d)\b/iu;
 
-/** @param {string} text @param {number} end End offset of the matched word */
-function readsAsDeterminer(text, end) {
+/** @param {string} text @param {number} end End offset of the matched word @returns {string} Next word, lowercased, or ''. */
+function nextWord(text, end) {
     const next = nextWordRe.exec(text.slice(end));
-    return Boolean(next) && !NOT_A_DETERMINER_BEFORE.has(next[1].toLowerCase());
+    return next ? next[1].toLowerCase() : '';
 }
 
-/** @param {string} text @param {number} start Start offset of the matched word */
-function readsAsSubject(text, start) {
+/** @param {string} word @returns {boolean} Whether the word reads as an adverb ("softly"). */
+function isLyAdverb(word) {
+    return word.length > 4 && word.endsWith('ly') && !LY_NOT_ADVERB.has(word);
+}
+
+/** her: object ("kissed her softly", "told her that") or determiner ("her bag"). */
+function readsAsObject(text, end) {
+    const next = nextWord(text, end);
+    return !next || NOT_A_DETERMINER_BEFORE.has(next) || isLyAdverb(next);
+}
+
+/** his/its: standalone possessive ("it is his", "his and hers") or determiner ("his coat"). */
+function readsAsStandalonePossessive(text, end) {
+    const next = nextWord(text, end);
+    return !next || STANDALONE_POSSESSIVE_BEFORE.has(next);
+}
+
+/** it: subject ("It wagged", "and it purred", "I think it is", "it's") or object ("gave it to", "I know it"). */
+function readsAsSubject(text, start, end) {
     const before = text.slice(0, start);
     if (openerRe.test(before)) return true;
     const prev = prevWordRe.exec(before);
-    return Boolean(prev) && SUBJECT_AFTER.has(prev[1].toLowerCase());
+    if (prev && SUBJECT_AFTER.has(prev[1].toLowerCase())) return true;
+    const after = text.slice(end);
+    return contractionRe.test(after) || VERB_AFTER_SUBJECT.has(nextWord(text, end));
 }
 
 /**
- * Picks the field an ambiguous word stands for at this position: her/his/its before a noun is
- * a determiner, "it" opening a clause is the subject; otherwise the precedence order decides.
+ * Picks the field an ambiguous word stands for at this position from its surroundings; a word
+ * whose fields are not one of the known English pairs falls back to the precedence order.
  * @param {Map<string, string>} byKey key -> macro token, in precedence order
  * @param {string} text
  * @param {number} start
@@ -74,8 +151,9 @@ function readsAsSubject(text, start) {
 function pickField(byKey, text, start, end) {
     const first = byKey.keys().next().value;
     if (byKey.size < 2) return first;
-    if (byKey.has('posDet') && readsAsDeterminer(text, end)) return 'posDet';
-    if (byKey.has('subjective') && byKey.has('objective') && readsAsSubject(text, start)) return 'subjective';
+    if (byKey.has('objective') && byKey.has('posDet')) return readsAsObject(text, end) ? 'objective' : 'posDet';
+    if (byKey.has('posPro') && byKey.has('posDet')) return readsAsStandalonePossessive(text, end) ? 'posPro' : 'posDet';
+    if (byKey.has('subjective') && byKey.has('objective')) return readsAsSubject(text, start, end) ? 'subjective' : 'objective';
     return first;
 }
 
