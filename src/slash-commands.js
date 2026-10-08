@@ -255,7 +255,11 @@ export function registerSlashCommands() {
             <code>rotate</code> (one set per reply) or <code>primary</code> (first set).</div>`,
         callback: (args, modeName) => {
             try {
-                const mode = String(modeName ?? '').trim().toLowerCase();
+                let mode = String(modeName ?? '').trim().toLowerCase();
+                if (mode === 'join') {
+                    toastr.warning(t`The "join" pronoun mode was retired. Using rotate instead.`, 'Character Lexicon');
+                    mode = MODES.ROTATE;
+                }
                 if (!Object.values(MODES).includes(mode)) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
