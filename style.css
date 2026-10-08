@@ -25,6 +25,13 @@
     opacity: 0.8;
 }
 
+/* No persona/character to write to (e.g. the Create New Character form): everything is locked. */
+.sbcl-editor.sbcl-disabled .sbcl-header,
+.sbcl-editor.sbcl-disabled .sbcl-multi-label,
+.sbcl-editor.sbcl-disabled .sbcl-option-label {
+    opacity: 0.5;
+}
+
 .sbcl-cell {
     flex: 1 1 0;
     min-width: 0;

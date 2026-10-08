@@ -71,14 +71,15 @@ export function createLanguageEditor(entity, onChange) {
     return panel;
 }
 
-export function refreshLanguageEditor(entity) {
+/** hasContext=false renders an empty, locked editor (e.g. the Create New Character form). */
+export function refreshLanguageEditor(entity, hasContext = true) {
     const panel = document.getElementById(panelId(entity));
     if (!panel) return;
-    const key = getLanguageProfileKey(entity);
+    const key = hasContext ? getLanguageProfileKey(entity) : '';
     if (panel.dataset.profileKey !== key) panel.open = false;
     panel.dataset.profileKey = key;
     panel.querySelector('fieldset').disabled = !key;
-    const profile = getLanguagePreferences(entity);
+    const profile = getLanguagePreferences(entity, key);
     panel.querySelector('.sbcl-language-enabled').checked = profile.enabled;
     for (const { key: field } of LANGUAGE_FIELDS) {
         const input = panel.querySelector(`[data-language-key="${field}"]`);
