@@ -17,7 +17,13 @@ import { registerDataEventListeners } from './src/data-events.js';
 import { refreshDirectives, clearDirectives, onGenerationDirective } from './src/directive.js';
 import { event_types, eventSource, saveSettingsDebounced } from '../../../../script.js';
 import { EXTENSION_ID, EXTENSION_NAME } from './src/identity.js';
-import { isMacroEngineEnabled, warnMacroEngineDisabled } from './src/compat.js';
+import {
+    LEGACY_EXTENSION_NAME,
+    getLegacyExtensionState,
+    warnLegacyExtensionEnabled,
+    isMacroEngineEnabled,
+    warnMacroEngineDisabled,
+} from './src/compat.js';
 
 export { EXTENSION_KEY, EXTENSION_NAME } from './src/identity.js';
 
@@ -43,6 +49,13 @@ export async function init() {
     initCalled = true;
 
     console.debug(`[${EXTENSION_NAME}] Initializing...`);
+
+    if (getLegacyExtensionState().enabled) {
+        // Two copies would fight over the macro names, the shared persona field and the prompt slots.
+        console.warn(`[${EXTENSION_NAME}] ${LEGACY_EXTENSION_NAME} is enabled; staying inactive until it is disabled.`);
+        eventSource.on(event_types.APP_INITIALIZED, warnLegacyExtensionEnabled);
+        return;
+    }
 
     ensureSettings(getOwnVersion());
     // Persist defaults on first run so settings (e.g. the directive toggle) survive a reload
@@ -81,6 +94,7 @@ export async function clean() {
     clearDirectives();
     resetReplyRotation();
     clearPersonaLanguagePreferences();
-    await cleanAllPronounData();
+    // The persona `pronoun` field predates this extension; leave it to an installed predecessor.
+    await cleanAllPronounData({ keepPersonaPronouns: getLegacyExtensionState().installed });
     console.debug(`[${EXTENSION_NAME}] Clean complete.`);
 }

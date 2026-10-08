@@ -529,13 +529,14 @@ export function setsFromPreset(presetKey) {
 
 /**
  * Removes all data this extension added:
- *  - the `pronoun` field from every persona descriptor
+ *  - the `pronoun` field from every persona descriptor, unless the predecessor still reads it
  *  - the extension's own settings (including stored character pronouns), retaining
  *    an empty import guard when a legacy settings backup exists
  * Uses a direct (non-debounced) save so cleanup persists before any reload.
+ * @param {{ keepPersonaPronouns?: boolean }} [options]
  */
-export async function cleanAllPronounData() {
-    if (power_user?.persona_descriptions) {
+export async function cleanAllPronounData({ keepPersonaPronouns = false } = {}) {
+    if (!keepPersonaPronouns && power_user?.persona_descriptions) {
         for (const descriptor of Object.values(power_user.persona_descriptions)) {
             if (descriptor && 'pronoun' in descriptor) {
                 delete descriptor.pronoun;
