@@ -34,6 +34,20 @@ function moveRecord(store, from, to) {
 }
 
 /**
+ * Copies a record to a new key when the target has none yet.
+ * @param {Record<string, any>} store
+ * @param {string} from
+ * @param {string} to
+ * @returns {boolean} Whether anything changed.
+ */
+function copyRecord(store, from, to) {
+    if (!store || typeof store !== 'object' || !from || !to || from === to || RESERVED_KEYS.has(to)) return false;
+    if (!Object.hasOwn(store, from) || Object.hasOwn(store, to)) return false;
+    store[to] = structuredClone(store[from]);
+    return true;
+}
+
+/**
  * @param {Record<string, any>} store
  * @param {string} key
  * @returns {boolean} Whether anything changed.
@@ -56,6 +70,20 @@ function onCharacterRenamed(oldAvatar, newAvatar) {
     const movedPronouns = moveRecord(settings[settingKeys.CHARACTERS], stem(oldAvatar), stem(newAvatar));
     const movedLanguage = moveRecord(settings[settingKeys.LANGUAGE_CHARACTERS], oldAvatar, newAvatar);
     if (movedPronouns || movedLanguage) saveSettingsDebounced();
+}
+
+/**
+ * The host copies the card file only; both lexicon records are keyed by avatar and would start empty.
+ * @param {{ oldAvatar?: string, newAvatar?: string }} data
+ */
+function onCharacterDuplicated(data) {
+    const oldAvatar = data?.oldAvatar;
+    const newAvatar = data?.newAvatar;
+    if (typeof oldAvatar !== 'string' || typeof newAvatar !== 'string' || !oldAvatar || !newAvatar || oldAvatar === newAvatar) return;
+    const settings = ensureSettings();
+    const copiedPronouns = copyRecord(settings[settingKeys.CHARACTERS], stem(oldAvatar), stem(newAvatar));
+    const copiedLanguage = copyRecord(settings[settingKeys.LANGUAGE_CHARACTERS], oldAvatar, newAvatar);
+    if (copiedPronouns || copiedLanguage) saveSettingsDebounced();
 }
 
 /** @param {{ id?: number, character?: { avatar?: string } }} data */
@@ -94,5 +122,6 @@ function onPersonaCreated(data) {
 export function registerDataEventListeners() {
     eventSource.on(event_types.PERSONA_CREATED, onPersonaCreated);
     eventSource.on(event_types.CHARACTER_RENAMED, onCharacterRenamed);
+    if (event_types.CHARACTER_DUPLICATED) eventSource.on(event_types.CHARACTER_DUPLICATED, onCharacterDuplicated);
     eventSource.on(event_types.CHARACTER_DELETED, onCharacterDeleted);
 }
