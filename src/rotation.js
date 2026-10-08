@@ -46,16 +46,25 @@ export function selectReplyRotation(type, args = {}, dryRun = false) {
     const last = context.history.at(-1);
     const replyIndex = replacesReply && last && !last.is_user && !last.is_system
         ? context.history.length - 1 : context.history.length;
-    selection = { context, turns: countReplies(context, replyIndex) };
+    selection = { context, turns: countReplies(context, replyIndex), historyLength: context.history.length };
     return true;
 }
 
-/** Hold the selected position while the host appends or streams the response. */
+/**
+ * A selection describes one reply. It ends when that reply lands (GENERATION_ENDED resets it) or,
+ * failing that, once the history has grown past the length it was made for.
+ * @param {ReturnType<typeof currentContext>} context
+ */
+function selectionIsCurrent(context) {
+    return Boolean(selection)
+        && context.history.length <= selection.historyLength
+        && Object.keys(context).every(key => context[key] === selection.context[key]);
+}
+
+/** Hold the selected position while the host builds the prompt or streams the response. */
 export function getRotationTurns() {
     const context = currentContext();
-    if (selection && Object.keys(context).every(key => context[key] === selection.context[key])) {
-        return selection.turns;
-    }
+    if (selectionIsCurrent(context)) return selection.turns;
     return countReplies(context);
 }
 
