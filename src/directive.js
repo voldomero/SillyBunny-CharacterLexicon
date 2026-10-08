@@ -17,6 +17,7 @@
 import { setExtensionPrompt, extension_prompt_types } from '../../../../../script.js';
 import { getRotationTurns, selectReplyRotation } from './rotation.js';
 import { getLanguageDirectives } from './language.js';
+import { isMacroEngineEnabled } from './compat.js';
 import { EXTENSION_KEY, EXTENSION_NAME } from './identity.js';
 import {
     getPersonaContainer,
@@ -129,6 +130,7 @@ export function getDirectiveDebugInfo() {
         turn: turns.persona,
         replyIndex: turns.replyIndex,
         language: getLanguageDirectives(),
+        macroEngineEnabled: isMacroEngineEnabled(),
         globalDirectiveEnabled: pronounsSettings.directiveEnabled,
         depth: pronounsSettings.directiveDepth,
         role: pronounsSettings.directiveRole,

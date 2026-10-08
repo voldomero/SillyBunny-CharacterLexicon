@@ -387,7 +387,7 @@ export function registerSlashCommands() {
                 console.info(`[${EXTENSION_NAME}] /lexicon-debug`, info);
                 const p = info.persona;
                 const c = info.character;
-                const summary = `Persona pronouns: ${p.sets.length} set(s), inject=${p.willInject}. Character pronouns: ${c.sets.length} set(s), inject=${c.willInject}. Language preferences: persona=${Boolean(info.language.persona)}, characters=${Boolean(info.language.characters)}. Depth=${info.depth}. (Full detail in console.)`;
+                const summary = `Persona pronouns: ${p.sets.length} set(s), inject=${p.willInject}. Character pronouns: ${c.sets.length} set(s), inject=${c.willInject}. Language preferences: persona=${Boolean(info.language.persona)}, characters=${Boolean(info.language.characters)}. Depth=${info.depth}. Macro engine: ${info.macroEngineEnabled ? 'on' : 'OFF (macros will not resolve)'}. (Full detail in console.)`;
                 toastr.info(summary, 'Character Lexicon debug', { timeOut: 12000, extendedTimeOut: 20000 });
                 return summary;
             } catch (error) {

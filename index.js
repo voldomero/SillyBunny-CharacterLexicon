@@ -17,6 +17,7 @@ import { registerDataEventListeners } from './src/data-events.js';
 import { refreshDirectives, clearDirectives, onGenerationDirective } from './src/directive.js';
 import { event_types, eventSource, saveSettingsDebounced } from '../../../../script.js';
 import { EXTENSION_ID, EXTENSION_NAME } from './src/identity.js';
+import { isMacroEngineEnabled, warnMacroEngineDisabled } from './src/compat.js';
 
 export { EXTENSION_KEY, EXTENSION_NAME } from './src/identity.js';
 
@@ -64,7 +65,10 @@ export async function init() {
     eventSource.on(event_types.GENERATION_ENDED, resetReplyRotation);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerationDirective);
     // Also inject once now and once the app is ready, so it's present for the first generation.
-    eventSource.on(event_types.APP_INITIALIZED, () => refreshDirectives());
+    eventSource.on(event_types.APP_INITIALIZED, () => {
+        refreshDirectives();
+        if (!isMacroEngineEnabled()) warnMacroEngineDisabled();
+    });
     refreshDirectives();
 
     console.debug(`[${EXTENSION_NAME}] Activated`);
