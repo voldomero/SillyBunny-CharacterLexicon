@@ -5,8 +5,12 @@
  */
 
 import { eventSource, event_types, saveSettingsDebounced } from '../../../../../script.js';
+import { power_user } from '../../../../../scripts/power-user.js';
 import { getCharaFilename } from '../../../../utils.js';
 import { ensureSettings, settingKeys } from './pronouns.js';
+import { PERSONA_LANGUAGE_KEY } from './language.js';
+
+const PERSONA_FIELDS = ['pronoun', PERSONA_LANGUAGE_KEY];
 
 /** @param {string} avatar @returns {string} The avatar filename without its extension. */
 function stem(avatar) {
@@ -62,8 +66,31 @@ function onCharacterDeleted(data) {
     if (droppedPronouns || droppedLanguage) saveSettingsDebounced();
 }
 
+/**
+ * The host builds a duplicated persona's descriptor from a fixed list of its own fields, so the
+ * lexicon fields have to be copied from the source. Overwrite paths carry no source and keep nothing.
+ * @param {{ avatarId?: string, duplicatedFromAvatarId?: string }} data
+ */
+function onPersonaCreated(data) {
+    const source = data?.duplicatedFromAvatarId;
+    const target = data?.avatarId;
+    if (typeof source !== 'string' || typeof target !== 'string' || !source || !target || source === target) return;
+    const from = power_user.persona_descriptions?.[source];
+    if (!from || typeof from !== 'object') return;
+    const to = power_user.persona_descriptions[target] ||= {};
+    let changed = false;
+    for (const field of PERSONA_FIELDS) {
+        if (from[field] === undefined || to[field] !== undefined) continue;
+        // A shallow copy would share the sets array between both personas.
+        to[field] = structuredClone(from[field]);
+        changed = true;
+    }
+    if (changed) saveSettingsDebounced();
+}
+
 /** Registers the host data event listeners. Called once during init. */
 export function registerDataEventListeners() {
+    eventSource.on(event_types.PERSONA_CREATED, onPersonaCreated);
     eventSource.on(event_types.CHARACTER_RENAMED, onCharacterRenamed);
     eventSource.on(event_types.CHARACTER_DELETED, onCharacterDeleted);
 }
