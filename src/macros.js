@@ -80,7 +80,8 @@ function makeVerbBeHandler(entity) {
     return () => {
         const subjective = resolvePronoun(containerFor(entity), 'subjective', getRotationTurns()[entity]).toLowerCase().trim();
         if (!subjective) return '';
-        return areForms.has(subjective) ? 'are' : 'is';
+        // Migrated single-set data may hold "they/them" in the subjective field.
+        return areForms.has(subjective.split('/')[0].trim()) ? 'are' : 'is';
     };
 }
 
