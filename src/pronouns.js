@@ -251,8 +251,15 @@ const defaultSettings = Object.freeze({
     [settingKeys.LANGUAGE_CHARACTERS]: {},
 });
 
-// Compatibility with saved data only; the old extension does not need to be installed.
+// Compatibility with saved data only; the old extensions do not need to be installed.
 const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
+const UPSTREAM_EXTENSION_KEY = 'sillytavern-pronouns';
+const UPSTREAM_IMPORTED_KEYS = [settingKeys.ENABLE_SHORTHANDS, settingKeys.ENABLE_WYVERN_COMPAT, settingKeys.ENABLE_JANITOR_COMPAT];
+
+/** @param {any} value @returns {boolean} */
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
 
 /**
  * Ensures extension settings exist with defaults.
@@ -262,9 +269,12 @@ const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
 export function ensureSettings(version = null) {
     if (!Object.hasOwn(extension_settings, EXTENSION_KEY)) {
         const legacy = extension_settings[LEGACY_EXTENSION_KEY];
+        const upstream = extension_settings[UPSTREAM_EXTENSION_KEY];
         // Copy once, including custom fields. Never merge a stale backup into an existing store.
-        extension_settings[EXTENSION_KEY] = legacy && typeof legacy === 'object' && !Array.isArray(legacy)
-            ? structuredClone(legacy) : {};
+        // Upstream SillyTavern-Pronouns shares only the alias toggles; persona sets already live on the descriptors.
+        extension_settings[EXTENSION_KEY] = isPlainObject(legacy) ? structuredClone(legacy)
+            : isPlainObject(upstream) ? Object.fromEntries(UPSTREAM_IMPORTED_KEYS.filter(key => key in upstream).map(key => [key, upstream[key]]))
+                : {};
     }
     if (!extension_settings[EXTENSION_KEY] || typeof extension_settings[EXTENSION_KEY] !== 'object'
         || Array.isArray(extension_settings[EXTENSION_KEY])) {
