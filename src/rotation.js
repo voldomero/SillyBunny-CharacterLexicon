@@ -40,8 +40,9 @@ export function selectReplyRotation(type, args = {}, dryRun = false) {
     if (selected_group && !is_group_generating) return false;
 
     const context = currentContext();
-    const replacesReply = type === 'swipe' || type === 'continue'
-        || (type === 'regenerate' && args?.preserveLastMessage);
+    // The host only sets preserveLastMessage for replacement regenerations, and the group wrapper
+    // forwards it while remapping the per-member type to 'normal'.
+    const replacesReply = type === 'swipe' || type === 'continue' || Boolean(args?.preserveLastMessage);
     const last = context.history.at(-1);
     const replyIndex = replacesReply && last && !last.is_user && !last.is_system
         ? context.history.length - 1 : context.history.length;
