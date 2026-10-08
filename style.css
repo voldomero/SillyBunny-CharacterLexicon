@@ -1,0 +1,185 @@
+/* SillyBunny Character Lexicon — editor + settings styling */
+
+.sbcl-editor {
+    margin: 10px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sbcl-title {
+    margin: 0;
+    gap: 6px;
+}
+
+/* Column headers + set rows share the same flex layout so cells line up. */
+.sbcl-header,
+.sbcl-set {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.sbcl-header {
+    font-size: calc(var(--mainFontSize) * 0.8);
+    opacity: 0.8;
+}
+
+.sbcl-cell {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.sbcl-cell .text_pole {
+    width: 100%;
+}
+
+.sbcl-field-info {
+    cursor: help;
+    font-size: 0.85em;
+}
+
+.sbcl-sets {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+/* Trash button at the end of each set row; spacer keeps the header aligned. */
+.sbcl-remove,
+.sbcl-remove-spacer {
+    flex: 0 0 auto;
+    width: 28px;
+    text-align: center;
+}
+
+.sbcl-remove {
+    padding: 4px;
+    cursor: pointer;
+}
+
+/* Self-contained flex so spacing never depends on ST's utility classes / menu_button margins. */
+.sbcl-controls,
+.sbcl-multi {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.sbcl-controls .menu_button,
+.sbcl-multi .menu_button {
+    margin: 0;
+}
+
+.sbcl-add {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 78px;
+    padding: 3px 8px;
+    white-space: nowrap;
+}
+
+.sbcl-preset {
+    min-width: 78px;
+    padding: 3px 6px;
+    text-align: center;
+    font-size: calc(var(--mainFontSize) * 0.8);
+}
+
+.sbcl-preset-multi {
+    border: 1px solid var(--SmartThemeQuoteColor, var(--SmartThemeBodyColor));
+}
+
+.sbcl-multi-label,
+.sbcl-option-label {
+    font-size: calc(var(--mainFontSize) * 0.85);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sbcl-options {
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.sbcl-options select.text_pole {
+    width: auto;
+    min-width: 0;
+}
+
+.sbcl-language {
+    margin-top: 8px;
+    min-width: 0;
+}
+
+.sbcl-language > summary {
+    cursor: pointer;
+    padding: 6px 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.sbcl-language-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
+    padding: 8px 0;
+    border: 0;
+}
+
+.sbcl-language-fields p {
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.sbcl-language-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.sbcl-language-field textarea {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    resize: vertical;
+}
+
+.sbcl-language-fields small {
+    opacity: 0.8;
+}
+
+/* Settings panel */
+.sbcl-settings-row {
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.sbcl-settings-row input[type="number"] {
+    max-width: 80px;
+}
+
+#sbcl_settings textarea {
+    width: 100%;
+    font-size: calc(var(--mainFontSize) * 0.85);
+}
+
+/* Replacer popup table */
+.popup .pronoun-replacer-table {
+    margin: 10px auto;
+    text-align: left;
+    border-collapse: collapse;
+}
+
+.popup .pronoun-replacer-table td,
+.popup .pronoun-replacer-table th {
+    padding: 1px 6px;
+}

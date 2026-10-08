@@ -1,0 +1,15 @@
+{
+    "display_name": "SillyBunny Character Lexicon",
+    "loading_order": 42,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "aracnai",
+    "version": "0.1.0-pre.1",
+    "homePage": "https://github.com/voldomero/SillyBunny-CharacterLexicon",
+    "hooks": {
+        "activate": "init",
+        "clean": "clean"
+    }
+}
