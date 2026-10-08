@@ -8,8 +8,8 @@
             <div class="flex-container flexFlowColumn">
 
                 <h4 data-i18n="Pronoun directive">Pronoun directive</h4>
-                <small data-i18n="When a persona or character has two or more pronoun sets, an instruction asks the model to use the same set as the macros. Rotate changes the set between replies; Primary keeps the first set.">
-                    When a persona or character has two or more pronoun sets, an instruction asks the model to use the same set as the macros. Rotate changes the set between replies; Primary keeps the first set.
+                <small data-i18n="When a persona or character has two or more pronoun sets, an instruction asks the model to use the same set as the macros. Rotate changes the set between replies. Primary keeps the first set.">
+                    When a persona or character has two or more pronoun sets, an instruction asks the model to use the same set as the macros. Rotate changes the set between replies. Primary keeps the first set.
                 </small>
 
                 <label class="checkbox_label" for="sbcl_directive_enabled">
@@ -31,7 +31,7 @@
                 <small data-i18n="Depth and role apply to both pronoun instructions and language preferences. Language preferences have their own switch in each profile.">Depth and role apply to both pronoun instructions and language preferences. Language preferences have their own switch in each profile.</small>
 
                 <label for="sbcl_directive_persona" data-i18n="Persona directive template">Persona directive template</label>
-                <small data-i18n="Placeholders: %LIST% = all sets (she/her and they/them); %ACTIVE% = the complete set selected for this reply. User/char macros are resolved normally.">Placeholders: <code>%LIST%</code> = all sets (she/her and they/them); <code>%ACTIVE%</code> = the complete set selected for this reply. <code>&lbrace;&lbrace;user&rbrace;&rbrace;</code> / <code>&lbrace;&lbrace;char&rbrace;&rbrace;</code> are resolved normally.</small>
+                <small data-i18n="Placeholders: %LIST% = all sets (she/her and they/them). %ACTIVE% = the complete set selected for this reply. User/char macros are resolved normally.">Placeholders: <code>%LIST%</code> = all sets (she/her and they/them). <code>%ACTIVE%</code> = the complete set selected for this reply. <code>&lbrace;&lbrace;user&rbrace;&rbrace;</code> / <code>&lbrace;&lbrace;char&rbrace;&rbrace;</code> are resolved normally.</small>
                 <textarea id="sbcl_directive_persona" class="text_pole textarea_compact" rows="3"></textarea>
 
                 <label for="sbcl_directive_character" data-i18n="Character directive template">Character directive template</label>
