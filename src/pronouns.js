@@ -251,8 +251,7 @@ const defaultSettings = Object.freeze({
     [settingKeys.LANGUAGE_CHARACTERS]: {},
 });
 
-// Compatibility with saved data only; the old extensions do not need to be installed.
-const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
+// Compatibility with saved upstream data; the upstream extension does not need to be installed.
 const UPSTREAM_EXTENSION_KEY = 'sillytavern-pronouns';
 const UPSTREAM_IMPORTED_KEYS = [settingKeys.ENABLE_SHORTHANDS, settingKeys.ENABLE_WYVERN_COMPAT, settingKeys.ENABLE_JANITOR_COMPAT];
 /** Key names upstream used before 2.1, in the order its own migration applies them; a current key always wins. */
@@ -287,12 +286,9 @@ function importUpstreamSettings(upstream) {
  */
 export function ensureSettings(version = null) {
     if (!Object.hasOwn(extension_settings, EXTENSION_KEY)) {
-        const legacy = extension_settings[LEGACY_EXTENSION_KEY];
         const upstream = extension_settings[UPSTREAM_EXTENSION_KEY];
-        // Copy once, including custom fields. Never merge a stale backup into an existing store.
-        extension_settings[EXTENSION_KEY] = isPlainObject(legacy) ? structuredClone(legacy)
-            : isPlainObject(upstream) ? importUpstreamSettings(upstream)
-                : {};
+        // Import supported alias toggles once; existing Character Lexicon settings always win.
+        extension_settings[EXTENSION_KEY] = isPlainObject(upstream) ? importUpstreamSettings(upstream) : {};
     }
     if (!extension_settings[EXTENSION_KEY] || typeof extension_settings[EXTENSION_KEY] !== 'object'
         || Array.isArray(extension_settings[EXTENSION_KEY])) {
@@ -556,8 +552,6 @@ export function setsFromPreset(presetKey) {
 
 /** What `clean` does with the persona `pronoun` field, which predates this extension. */
 export const PERSONA_HANDOFF = Object.freeze({
-    /** A predecessor that stores the same set list stays installed. */
-    KEEP: 'keep',
     /** Only upstream SillyTavern-Pronouns stays installed; it reads five flat fields and cannot see a set list. */
     FLATTEN: 'flatten',
     /** Nothing left reads the field. */
@@ -567,13 +561,12 @@ export const PERSONA_HANDOFF = Object.freeze({
 /**
  * Removes all data this extension added:
  *  - the `pronoun` field from every persona descriptor, or hands it over per `personaPronouns`
- *  - the extension's own settings (including stored character pronouns), retaining
- *    an empty import guard when a legacy settings backup exists
+ *  - the extension's own settings (including stored character pronouns)
  * Uses a direct (non-debounced) save so cleanup persists before any reload.
- * @param {{ personaPronouns?: 'keep'|'flatten'|'delete' }} [options]
+ * @param {{ personaPronouns?: 'flatten'|'delete' }} [options]
  */
 export async function cleanAllPronounData({ personaPronouns = PERSONA_HANDOFF.DELETE } = {}) {
-    if (personaPronouns !== PERSONA_HANDOFF.KEEP && power_user?.persona_descriptions) {
+    if (power_user?.persona_descriptions) {
         for (const descriptor of Object.values(power_user.persona_descriptions)) {
             if (!descriptor || typeof descriptor !== 'object' || !('pronoun' in descriptor)) continue;
             if (personaPronouns === PERSONA_HANDOFF.DELETE) {
@@ -586,12 +579,6 @@ export async function cleanAllPronounData({ personaPronouns = PERSONA_HANDOFF.DE
             }
         }
     }
-    if (Object.hasOwn(extension_settings, LEGACY_EXTENSION_KEY) && Object.hasOwn(extension_settings, EXTENSION_KEY)) {
-        // Keep the backup untouched, but prevent reinstalling from silently reimporting cleared preferences.
-        // A store that never existed (cleaned while dormant) has imported nothing yet, so leave the import open.
-        extension_settings[EXTENSION_KEY] = {};
-    } else {
-        delete extension_settings[EXTENSION_KEY];
-    }
+    delete extension_settings[EXTENSION_KEY];
     await saveSettings();
 }
