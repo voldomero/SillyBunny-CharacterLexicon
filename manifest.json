@@ -5,8 +5,8 @@
     "optional": [],
     "js": "index.js",
     "css": "style.css",
-    "author": "aracnai",
-    "version": "0.1.0-pre.1",
+    "author": "Voldomero",
+    "version": "1.0.0",
     "homePage": "https://github.com/voldomero/SillyBunny-CharacterLexicon",
     "hooks": {
         "activate": "init",
