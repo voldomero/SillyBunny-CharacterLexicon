@@ -13,9 +13,17 @@ import { resetReplyRotation } from './src/rotation.js';
 import { clearPersonaLanguagePreferences } from './src/language.js';
 import { applyMacroSettings, registerPreProcessors } from './src/macros.js';
 import { registerSlashCommands } from './src/slash-commands.js';
+import { registerDataEventListeners } from './src/data-events.js';
 import { refreshDirectives, clearDirectives, onGenerationDirective } from './src/directive.js';
 import { event_types, eventSource, saveSettingsDebounced } from '../../../../script.js';
 import { EXTENSION_ID, EXTENSION_NAME } from './src/identity.js';
+import {
+    getLegacyExtensionState,
+    personaPronounHandoff,
+    warnLegacyExtensionEnabled,
+    isMacroEngineEnabled,
+    warnMacroEngineDisabled,
+} from './src/compat.js';
 
 export { EXTENSION_KEY, EXTENSION_NAME } from './src/identity.js';
 
@@ -42,6 +50,14 @@ export async function init() {
 
     console.debug(`[${EXTENSION_NAME}] Initializing...`);
 
+    const legacy = getLegacyExtensionState();
+    if (legacy.enabled.length) {
+        // Two copies would fight over the macro names, the shared persona field and the prompt slots.
+        console.warn(`[${EXTENSION_NAME}] ${legacy.enabled.join(', ')} is enabled; staying inactive until it is disabled.`);
+        eventSource.on(event_types.APP_INITIALIZED, () => warnLegacyExtensionEnabled(legacy.enabled));
+        return;
+    }
+
     ensureSettings(getOwnVersion());
     // Persist defaults on first run so settings (e.g. the directive toggle) survive a reload
     // even if the user never changes anything.
@@ -52,15 +68,22 @@ export async function init() {
 
     await injectUI();
     registerEventListeners();
+    registerDataEventListeners();
     refreshEditors();
 
     registerSlashCommands();
 
     // A fresh chat load may reuse the same array and chat id; discard the old selection.
     eventSource.on(event_types.CHAT_CHANGED, resetReplyRotation);
+    // Once the reply has landed (or the generation was stopped), everything evaluated afterwards belongs to the next turn.
+    eventSource.on(event_types.GENERATION_ENDED, resetReplyRotation);
+    if (event_types.GENERATION_STOPPED) eventSource.on(event_types.GENERATION_STOPPED, resetReplyRotation);
     eventSource.on(event_types.GENERATION_AFTER_COMMANDS, onGenerationDirective);
     // Also inject once now and once the app is ready, so it's present for the first generation.
-    eventSource.on(event_types.APP_INITIALIZED, () => refreshDirectives());
+    eventSource.on(event_types.APP_INITIALIZED, () => {
+        refreshDirectives();
+        if (!isMacroEngineEnabled()) warnMacroEngineDisabled();
+    });
     refreshDirectives();
 
     console.debug(`[${EXTENSION_NAME}] Activated`);
@@ -73,6 +96,7 @@ export async function clean() {
     clearDirectives();
     resetReplyRotation();
     clearPersonaLanguagePreferences();
-    await cleanAllPronounData();
+    // The persona `pronoun` field predates this extension; an installed predecessor gets it in a shape it reads.
+    await cleanAllPronounData({ personaPronouns: personaPronounHandoff(getLegacyExtensionState()) });
     console.debug(`[${EXTENSION_NAME}] Clean complete.`);
 }

@@ -17,6 +17,7 @@
 import { setExtensionPrompt, extension_prompt_types } from '../../../../../script.js';
 import { getRotationTurns, selectReplyRotation } from './rotation.js';
 import { getLanguageDirectives } from './language.js';
+import { isMacroEngineEnabled } from './compat.js';
 import { EXTENSION_KEY, EXTENSION_NAME } from './identity.js';
 import {
     getPersonaContainer,
@@ -105,13 +106,16 @@ export function refreshDirectives() {
 
 /**
  * Event handler for GENERATION_AFTER_COMMANDS — refreshes directives just before
- * the prompt is built. Background calls cannot change an in-flight selection.
+ * the prompt is built. Only reply generations select a position; the rest reuse it or recount.
  * @param {string} type
  * @param {object} [args]
  * @param {boolean} [dryRun]
  */
 export function onGenerationDirective(type, args, dryRun) {
-    if (selectReplyRotation(type, args, dryRun)) refreshDirectives();
+    selectReplyRotation(type, args, dryRun);
+    // Quiet, impersonate and group dispatch calls make no selection, but the host still builds a
+    // prompt for whichever character is active now, so the slots must not keep a previous speaker.
+    if (!dryRun) refreshDirectives();
 }
 
 /**
@@ -126,6 +130,7 @@ export function getDirectiveDebugInfo() {
         turn: turns.persona,
         replyIndex: turns.replyIndex,
         language: getLanguageDirectives(),
+        macroEngineEnabled: isMacroEngineEnabled(),
         globalDirectiveEnabled: pronounsSettings.directiveEnabled,
         depth: pronounsSettings.directiveDepth,
         role: pronounsSettings.directiveRole,

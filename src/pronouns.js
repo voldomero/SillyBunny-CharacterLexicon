@@ -15,7 +15,7 @@
  *    out of the card file so chatting with a card never mutates someone else's card.
  */
 
-import { saveSettingsDebounced, saveSettings, user_avatar, this_chid } from '../../../../../script.js';
+import { saveSettingsDebounced, saveSettings, user_avatar, this_chid, menu_type } from '../../../../../script.js';
 import { power_user } from '../../../../../scripts/power-user.js';
 import { extension_settings } from '../../../../extensions.js';
 import { getCharaFilename } from '../../../../utils.js';
@@ -251,8 +251,34 @@ const defaultSettings = Object.freeze({
     [settingKeys.LANGUAGE_CHARACTERS]: {},
 });
 
-// Compatibility with saved data only; the old extension does not need to be installed.
+// Compatibility with saved data only; the old extensions do not need to be installed.
 const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
+const UPSTREAM_EXTENSION_KEY = 'sillytavern-pronouns';
+const UPSTREAM_IMPORTED_KEYS = [settingKeys.ENABLE_SHORTHANDS, settingKeys.ENABLE_WYVERN_COMPAT, settingKeys.ENABLE_JANITOR_COMPAT];
+/** Key names upstream used before 2.1, in the order its own migration applies them; a current key always wins. */
+const UPSTREAM_LEGACY_KEYS = Object.freeze({
+    enablePersonaShorthands: settingKeys.ENABLE_SHORTHANDS,
+    enableWyvernShorthands: settingKeys.ENABLE_SHORTHANDS,
+    enableJanitorShorthands: settingKeys.ENABLE_JANITOR_COMPAT,
+});
+
+/** @param {any} value @returns {boolean} */
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Upstream SillyTavern-Pronouns shares only the alias toggles; persona sets already live on the descriptors.
+ * @param {Record<string, any>} upstream
+ * @returns {Record<string, any>}
+ */
+function importUpstreamSettings(upstream) {
+    const imported = Object.fromEntries(UPSTREAM_IMPORTED_KEYS.filter(key => key in upstream).map(key => [key, upstream[key]]));
+    for (const [legacyKey, key] of Object.entries(UPSTREAM_LEGACY_KEYS)) {
+        if (legacyKey in upstream && !(key in imported)) imported[key] = upstream[legacyKey];
+    }
+    return imported;
+}
 
 /**
  * Ensures extension settings exist with defaults.
@@ -262,9 +288,11 @@ const LEGACY_EXTENSION_KEY = 'sillybunny-pronouns';
 export function ensureSettings(version = null) {
     if (!Object.hasOwn(extension_settings, EXTENSION_KEY)) {
         const legacy = extension_settings[LEGACY_EXTENSION_KEY];
+        const upstream = extension_settings[UPSTREAM_EXTENSION_KEY];
         // Copy once, including custom fields. Never merge a stale backup into an existing store.
-        extension_settings[EXTENSION_KEY] = legacy && typeof legacy === 'object' && !Array.isArray(legacy)
-            ? structuredClone(legacy) : {};
+        extension_settings[EXTENSION_KEY] = isPlainObject(legacy) ? structuredClone(legacy)
+            : isPlainObject(upstream) ? importUpstreamSettings(upstream)
+                : {};
     }
     if (!extension_settings[EXTENSION_KEY] || typeof extension_settings[EXTENSION_KEY] !== 'object'
         || Array.isArray(extension_settings[EXTENSION_KEY])) {
@@ -384,7 +412,7 @@ export function getCharacterContainer() {
  */
 export function setCharacterContainer(container) {
     const key = getCurrentCharacterKey();
-    if (!key) return;
+    if (!key || !canWriteCharacter()) return;
     const serialized = serializeContainer(container);
     const store = ensureCharacterStore();
     if (serialized.sets.length === 0 && serialized.directive === DIRECTIVE_OVERRIDE.DEFAULT && serialized.mode === MODES.ROTATE) {
@@ -414,9 +442,18 @@ export function setContainer(entity, container) {
     else setPersonaContainer(container);
 }
 
-/** @param {Entity} entity @returns {boolean} Whether the entity has a usable id/context. */
+/**
+ * The Create New Character form keeps this_chid on the previously selected card, so writes
+ * made while it is open would land on that card.
+ * @returns {boolean}
+ */
+export function canWriteCharacter() {
+    return menu_type !== 'create';
+}
+
+/** @param {Entity} entity @returns {boolean} Whether the entity can be read and written right now. */
 export function hasEntityContext(entity) {
-    return entity === 'character' ? Boolean(getCurrentCharacterKey()) : Boolean(getCurrentPersonaId());
+    return entity === 'character' ? Boolean(getCurrentCharacterKey()) && canWriteCharacter() : Boolean(getCurrentPersonaId());
 }
 
 // ---------------------------------------------------------------------------
@@ -517,23 +554,41 @@ export function setsFromPreset(presetKey) {
 // Cleanup
 // ---------------------------------------------------------------------------
 
+/** What `clean` does with the persona `pronoun` field, which predates this extension. */
+export const PERSONA_HANDOFF = Object.freeze({
+    /** A predecessor that stores the same set list stays installed. */
+    KEEP: 'keep',
+    /** Only upstream SillyTavern-Pronouns stays installed; it reads five flat fields and cannot see a set list. */
+    FLATTEN: 'flatten',
+    /** Nothing left reads the field. */
+    DELETE: 'delete',
+});
+
 /**
  * Removes all data this extension added:
- *  - the `pronoun` field from every persona descriptor
+ *  - the `pronoun` field from every persona descriptor, or hands it over per `personaPronouns`
  *  - the extension's own settings (including stored character pronouns), retaining
  *    an empty import guard when a legacy settings backup exists
  * Uses a direct (non-debounced) save so cleanup persists before any reload.
+ * @param {{ personaPronouns?: 'keep'|'flatten'|'delete' }} [options]
  */
-export async function cleanAllPronounData() {
-    if (power_user?.persona_descriptions) {
+export async function cleanAllPronounData({ personaPronouns = PERSONA_HANDOFF.DELETE } = {}) {
+    if (personaPronouns !== PERSONA_HANDOFF.KEEP && power_user?.persona_descriptions) {
         for (const descriptor of Object.values(power_user.persona_descriptions)) {
-            if (descriptor && 'pronoun' in descriptor) {
+            if (!descriptor || typeof descriptor !== 'object' || !('pronoun' in descriptor)) continue;
+            if (personaPronouns === PERSONA_HANDOFF.DELETE) {
                 delete descriptor.pronoun;
+            } else if (Array.isArray(descriptor.pronoun?.sets)) {
+                // A flat field is already readable upstream and stays as it is; a set list becomes its first set.
+                const first = normalizeContainer(descriptor.pronoun).sets[0];
+                if (first) descriptor.pronoun = first;
+                else delete descriptor.pronoun;
             }
         }
     }
-    if (Object.hasOwn(extension_settings, LEGACY_EXTENSION_KEY)) {
+    if (Object.hasOwn(extension_settings, LEGACY_EXTENSION_KEY) && Object.hasOwn(extension_settings, EXTENSION_KEY)) {
         // Keep the backup untouched, but prevent reinstalling from silently reimporting cleared preferences.
+        // A store that never existed (cleaned while dormant) has imported nothing yet, so leave the import open.
         extension_settings[EXTENSION_KEY] = {};
     } else {
         delete extension_settings[EXTENSION_KEY];

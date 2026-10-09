@@ -208,10 +208,13 @@ and scripts continue to work.
   complete avatar reference. Existing pronoun record keys stay unchanged.
   These preferences do not modify or become part of the exported character card.
 
-The data-cleanup hook removes Character Lexicon's pronouns and language preferences
-and clears its prompt instructions. Any original settings backup is retained. If a
-backup exists, an empty Character Lexicon settings record prevents reinstalling from
-silently importing preferences that were cleared.
+The data-cleanup hook removes Character Lexicon's language preferences, character
+pronouns and prompt instructions. Persona pronouns go to whichever predecessor is still
+installed: kept unchanged with SillyBunny-Pronouns, reduced to the first set in the
+original single-set shape with only SillyTavern-Pronouns, removed when neither is
+installed. Any original settings backup is retained. If a backup exists, an empty
+Character Lexicon settings record prevents reinstalling from silently importing
+preferences that were cleared.
 
 
 ## License

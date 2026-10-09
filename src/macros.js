@@ -67,7 +67,7 @@ function containerFor(entity) {
  * @returns {(ctx: any) => string}
  */
 function makeValueHandler(entity, key) {
-    return () => resolvePronoun(containerFor(entity), key, getRotationTurns()[entity]);
+    return (ctx) => resolvePronoun(containerFor(entity), key, getRotationTurns(ctx)[entity]);
 }
 
 /**
@@ -77,10 +77,11 @@ function makeValueHandler(entity, key) {
  */
 function makeVerbBeHandler(entity) {
     const areForms = new Set(['they', 'we', 'you']);
-    return () => {
-        const subjective = resolvePronoun(containerFor(entity), 'subjective', getRotationTurns()[entity]).toLowerCase().trim();
+    return (ctx) => {
+        const subjective = resolvePronoun(containerFor(entity), 'subjective', getRotationTurns(ctx)[entity]).toLowerCase().trim();
         if (!subjective) return '';
-        return areForms.has(subjective) ? 'are' : 'is';
+        // Migrated single-set data may hold "they/them" in the subjective field.
+        return areForms.has(subjective.split('/')[0].trim()) ? 'are' : 'is';
     };
 }
 

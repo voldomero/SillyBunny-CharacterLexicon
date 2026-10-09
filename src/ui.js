@@ -6,8 +6,8 @@
  * the settings panel. Editors are built in JS because the set list is dynamic.
  */
 
-import { eventSource, event_types } from '../../../../../script.js';
-import { t } from '../../../../../scripts/i18n.js';
+import { eventSource, event_types, menu_type } from '../../../../../script.js';
+import { t, translate } from '../../../../../scripts/i18n.js';
 import { renderExtensionTemplateAsync } from '../../../../extensions.js';
 import { EXTENSION_ASSET_PATH, EXTENSION_NAME } from './identity.js';
 import {
@@ -17,9 +17,12 @@ import {
     defaultSet,
     pronounPresets,
     multiPresets,
+    emptyContainer,
+    normalizeContainer,
     getContainer,
     setContainer,
-    hasEntityContext,
+    getCurrentPersonaId,
+    getCurrentCharacterKey,
     pronounsSettings,
     saveSetting,
     settingKeys,
@@ -78,10 +81,40 @@ function readContainerFromDom(entity) {
     return { sets, mode, directive };
 }
 
+/**
+ * Key of the entity the editor would write to right now, or '' when there is none.
+ * The Create New Character form keeps this_chid on the previously selected card, so
+ * create mode counts as "no character" for the editor.
+ * @param {'persona'|'character'} entity
+ * @returns {string}
+ */
+function editorEntityKey(entity) {
+    if (entity === 'character') return menu_type === 'create' ? '' : getCurrentCharacterKey();
+    return getCurrentPersonaId();
+}
+
+/**
+ * Whether the editor was rendered for the entity it would write to now, and storage has not
+ * changed underneath it since (a persona backup restore replaces descriptors without any event).
+ * @param {'persona'|'character'} entity
+ * @returns {boolean}
+ */
+function editorIsCurrent(entity) {
+    const root = document.getElementById(editorId(entity));
+    const key = editorEntityKey(entity);
+    return Boolean(root && key && root.dataset.entityKey === key
+        && root.dataset.stored === JSON.stringify(getContainer(entity)));
+}
+
 /** Persists the editor's current DOM state and refreshes derived state. */
 function commit(entity) {
-    if (!hasEntityContext(entity)) return;
+    // A stale editor must never be written out; show what is actually stored instead.
+    if (!editorIsCurrent(entity)) {
+        refreshEditor(entity);
+        return;
+    }
     setContainer(entity, readContainerFromDom(entity));
+    document.getElementById(editorId(entity)).dataset.stored = JSON.stringify(getContainer(entity));
     refreshDirectives();
     updateTooltips(entity);
 }
@@ -96,9 +129,10 @@ function createSetRow(entity, set) {
     const row = document.createElement('div');
     row.className = 'sbcl-set flex-container';
 
-    FIELD_META.forEach(({ key, placeholder }) => {
+    FIELD_META.forEach(({ key, label, placeholder }) => {
         const cell = document.createElement('div');
         cell.className = 'sbcl-cell flex1';
+        cell.dataset.label = translate(label); // shown per field on narrow screens
         const input = document.createElement('input');
         input.className = 'text_pole';
         input.type = 'text';
@@ -106,6 +140,8 @@ function createSetRow(entity, set) {
         input.placeholder = placeholder;
         input.value = set?.[key] ?? '';
         input.addEventListener('input', () => commit(entity));
+        // The character editor sits inside form#form_create; Enter would otherwise save (or create) the card.
+        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
         cell.appendChild(input);
         row.appendChild(cell);
     });
@@ -124,6 +160,10 @@ function createSetRow(entity, set) {
 
 /** Appends a set row to the editor and persists. */
 function addSetRow(entity, set) {
+    if (!editorIsCurrent(entity)) {
+        refreshEditor(entity);
+        return;
+    }
     const setsContainer = document.getElementById(editorId(entity))?.querySelector('.sbcl-sets');
     if (!setsContainer) return;
     setsContainer.appendChild(createSetRow(entity, set ?? { ...defaultSet }));
@@ -168,7 +208,7 @@ function buildEditor(entity) {
         const cell = document.createElement('div');
         cell.className = 'sbcl-cell flex1';
         const lbl = document.createElement('span');
-        lbl.textContent = t`${label}`;
+        lbl.textContent = translate(label);
         const ic = document.createElement('i');
         ic.className = 'fa-solid fa-circle-info opacity50p sbcl-field-info';
         ic.dataset.key = key;
@@ -224,6 +264,10 @@ function buildEditor(entity) {
         btn.textContent = label;
         btn.title = t`Replace all sets with ${label}`;
         btn.addEventListener('click', () => {
+            if (!editorIsCurrent(entity)) {
+                refreshEditor(entity);
+                return;
+            }
             renderSets(entity, multiPresets[key].map((p) => ({ ...pronounPresets[p] })));
             commit(entity);
         });
@@ -270,7 +314,11 @@ function buildEditor(entity) {
     replacerBtn.className = 'menu_button sbcl-replacer-btn';
     replacerBtn.textContent = t`Replacer`;
     replacerBtn.title = t`Open the pronoun replacer for this ${who}`;
-    replacerBtn.addEventListener('click', () => openPronounReplacePopup(null, { entity }));
+    replacerBtn.addEventListener('click', () => {
+        // The popup reads storage, so a stale editor only needs to catch up first.
+        if (!editorIsCurrent(entity)) refreshEditor(entity);
+        if (editorEntityKey(entity)) openPronounReplacePopup(null, { entity });
+    });
     opts.appendChild(replacerBtn);
 
     root.appendChild(opts);
@@ -286,14 +334,36 @@ function buildEditor(entity) {
 function refreshEditor(entity) {
     const root = document.getElementById(editorId(entity));
     if (!root) return;
-    const container = getContainer(entity);
-    renderSets(entity, container.sets);
-    const modeSel = root.querySelector('.sbcl-mode');
-    if (modeSel) modeSel.value = container.mode;
-    const dirSel = root.querySelector('.sbcl-directive');
-    if (dirSel) dirSel.value = container.directive;
-    refreshLanguageEditor(entity);
+    const key = editorEntityKey(entity);
+    const container = key ? getContainer(entity) : emptyContainer();
+    const stored = JSON.stringify(container);
+    // PERSONA_UPDATED fires on every description keystroke: keep the rows (including an unfilled
+    // "Add set" row) when nothing the editor shows has changed underneath it.
+    const unchanged = root.dataset.entityKey === key && root.dataset.stored === stored
+        && JSON.stringify(normalizeContainer(readContainerFromDom(entity))) === stored;
+    root.dataset.entityKey = key;
+    root.dataset.stored = stored;
+    if (!unchanged) {
+        renderSets(entity, container.sets);
+        const modeSel = root.querySelector('.sbcl-mode');
+        if (modeSel) modeSel.value = container.mode;
+        const dirSel = root.querySelector('.sbcl-directive');
+        if (dirSel) dirSel.value = container.directive;
+    }
+    setEditorEnabled(root, Boolean(key));
+    refreshLanguageEditor(entity, Boolean(key));
     updateTooltips(entity);
+}
+
+/**
+ * Greys out and locks an editor that has no entity to write to.
+ * @param {HTMLElement} root
+ * @param {boolean} enabled
+ */
+function setEditorEnabled(root, enabled) {
+    root.classList.toggle('sbcl-disabled', !enabled);
+    root.querySelectorAll('.sbcl-sets input, .sbcl-mode, .sbcl-directive').forEach((el) => { el.disabled = !enabled; });
+    root.querySelectorAll('.menu_button').forEach((el) => el.classList.toggle('disabled', !enabled));
 }
 
 /** Re-reads both editors from storage. Exported for slash commands. */
@@ -449,6 +519,12 @@ export function registerEventListeners() {
     });
     // Character panel opened / edited
     eventSource.on(event_types.CHARACTER_PAGE_LOADED, () => setTimeout(() => { refreshEditor('character'); refreshDirectives(); }, 0));
+    // Opening a card from the list or from a group member's "view" button only emits this (with chid).
+    if (event_types.CHARACTER_EDITOR_OPENED) {
+        eventSource.on(event_types.CHARACTER_EDITOR_OPENED, () => setTimeout(() => { refreshEditor('character'); refreshDirectives(); }, 0));
+    }
+    // The Create New Character form reuses the same inputs while this_chid still points at the previous card.
+    $(document).on('click', '#rm_button_create', () => setTimeout(() => refreshEditor('character'), 0));
     if (event_types.CHARACTER_EDITED) {
         eventSource.on(event_types.CHARACTER_EDITED, () => setTimeout(() => { refreshEditor('character'); refreshDirectives(); }, 0));
     }

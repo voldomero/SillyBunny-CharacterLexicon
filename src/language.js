@@ -1,7 +1,7 @@
 import { characters, this_chid, user_avatar, saveSettingsDebounced } from '../../../../../script.js';
 import { power_user } from '../../../../../scripts/power-user.js';
 import { selected_group, groups } from '../../../../../scripts/group-chats.js';
-import { ensureSettings, settingKeys } from './pronouns.js';
+import { ensureSettings, settingKeys, canWriteCharacter } from './pronouns.js';
 
 export const PERSONA_LANGUAGE_KEY = 'sillybunny_language_preferences';
 
@@ -44,7 +44,7 @@ export function getLanguagePreferences(entity, key = getLanguageProfileKey(entit
 /** expectedKey prevents a stale editor event from saving into a newly selected profile. */
 export function setLanguagePreferences(entity, raw, expectedKey = getLanguageProfileKey(entity)) {
     const key = getLanguageProfileKey(entity);
-    if (!key || key !== expectedKey) return false;
+    if (!key || key !== expectedKey || (entity === 'character' && !canWriteCharacter())) return false;
     const profile = normalizeLanguagePreferences(raw);
     const empty = profile.enabled && LANGUAGE_FIELDS.every(field => !profile[field.key].trim());
     if (entity === 'character') {
@@ -71,9 +71,16 @@ function terms(value) {
     });
 }
 
+const ZERO_WIDTH_SPACE = '\u200b';
+
 function quoted(value) {
-    // JSON unicode escapes keep authored terms and card names out of the host macro engine.
-    return JSON.stringify(value).replace(/[<>{}]/g, char => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`);
+    // Terms stay literal for the model. Only what the host substitutes is broken up: {{macros}}
+    // and the legacy <USER>/<BOT>/<CHAR>/<GROUP> markers get a zero-width space so they no longer match.
+    const safe = String(value)
+        .replace(/\{\{/g, `{${ZERO_WIDTH_SPACE}{`)
+        .replace(/\}\}/g, `}${ZERO_WIDTH_SPACE}}`)
+        .replace(/<(?=(?:user|bot|char|group|charifnotgroup)>)/gi, `<${ZERO_WIDTH_SPACE}`);
+    return `\u201c${safe}\u201d`;
 }
 
 /** owner is a trusted user/char macro or an already-quoted card name. */

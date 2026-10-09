@@ -62,6 +62,11 @@ function resolveEntity(value) {
     return String(value ?? '').trim().toLowerCase() === 'character' ? 'character' : 'persona';
 }
 
+/** @param {'persona'|'character'} entity @returns {string} The translated noun for toasts. */
+function entityLabel(entity) {
+    return entity === 'character' ? t`character` : t`persona`;
+}
+
 /** Re-render editors and re-inject directives after a programmatic change. */
 function afterChange() {
     refreshDirectives();
@@ -101,7 +106,7 @@ export function registerSlashCommands() {
                 typeList: [ARGUMENT_TYPE.STRING], enumList: ENTITY_ENUMS, forceEnum: true,
             }),
             SlashCommandNamedArgument.fromProps({
-                name: 'index', description: 'Which set to edit (0-based, default 0). Higher sets are created as needed.',
+                name: 'index', description: 'Which set to edit (0-based, default 0). An index past the last set fills that set\'s empty field or appends one new set.',
                 typeList: [ARGUMENT_TYPE.NUMBER],
             }),
         ],
@@ -126,15 +131,26 @@ export function registerSlashCommands() {
                 if (!PRONOUN_KEYS.includes(key)) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to set pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to set pronouns for.`, 'Character Lexicon');
                     return '';
                 }
-                const index = Math.max(0, Math.trunc(Number(args.index) || 0));
                 const container = getContainer(entity);
-                while (container.sets.length <= index) container.sets.push({ ...defaultSet });
+                const requested = Math.max(0, Math.trunc(Number(args.index) || 0));
+                // Empty sets are never stored, so an index past the end cannot be padded to. Consecutive
+                // calls that build one set field by field must land on the same set: a trailing set whose
+                // field is still empty takes the value, otherwise one new set is appended.
+                let index = requested;
+                if (requested >= container.sets.length) {
+                    const last = container.sets.at(-1);
+                    if (last && PRONOUN_KEYS.some(field => !last[field]) && !last[key]) index = container.sets.length - 1;
+                    else { container.sets.push({ ...defaultSet }); index = container.sets.length - 1; }
+                }
                 container.sets[index][key] = String(value ?? '');
                 setContainer(entity, container);
                 afterChange();
+                if (index !== requested) {
+                    toastr.info(t`Set ${requested} does not exist yet; wrote to set ${index} instead.`, 'Character Lexicon');
+                }
                 return String(value ?? '');
             } catch (error) {
                 toastr.error(String(error?.message ?? error), 'Character Lexicon');
@@ -146,6 +162,7 @@ export function registerSlashCommands() {
     // /pronouns-preset (replace all sets)
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'pronouns-preset',
+        aliases: ['pronouns-set-preset'],
         returns: 'The applied preset key, or empty string if not found.',
         namedArgumentList: [
             SlashCommandNamedArgument.fromProps({
@@ -174,7 +191,7 @@ export function registerSlashCommands() {
                 if (sets.length === 0) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to set pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to set pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -216,7 +233,7 @@ export function registerSlashCommands() {
                 if (!pronounPresets[key]) return '';
                 const entity = resolveEntity(args.target);
                 if (!hasEntityContext(entity)) {
-                    toastr.warning(t`No active ${entity} to add pronouns for.`, 'Character Lexicon');
+                    toastr.warning(t`No active ${entityLabel(entity)} to add pronouns for.`, 'Character Lexicon');
                     return '';
                 }
                 const container = getContainer(entity);
@@ -252,9 +269,17 @@ export function registerSlashCommands() {
             <code>rotate</code> (one set per reply) or <code>primary</code> (first set).</div>`,
         callback: (args, modeName) => {
             try {
-                const mode = String(modeName ?? '').trim().toLowerCase();
+                let mode = String(modeName ?? '').trim().toLowerCase();
+                if (mode === 'join') {
+                    toastr.warning(t`The "join" pronoun mode was retired. Using rotate instead.`, 'Character Lexicon');
+                    mode = MODES.ROTATE;
+                }
                 if (!Object.values(MODES).includes(mode)) return '';
                 const entity = resolveEntity(args.target);
+                if (!hasEntityContext(entity)) {
+                    toastr.warning(t`No active ${entityLabel(entity)} to set the pronoun mode for.`, 'Character Lexicon');
+                    return '';
+                }
                 const container = getContainer(entity);
                 container.mode = mode;
                 setContainer(entity, container);
@@ -281,6 +306,10 @@ export function registerSlashCommands() {
         callback: (args) => {
             try {
                 const entity = resolveEntity(args.target);
+                if (!hasEntityContext(entity)) {
+                    toastr.warning(t`No active ${entityLabel(entity)} to clear pronouns for.`, 'Character Lexicon');
+                    return '';
+                }
                 const container = getContainer(entity);
                 container.sets = [];
                 setContainer(entity, container);
@@ -372,7 +401,7 @@ export function registerSlashCommands() {
                 console.info(`[${EXTENSION_NAME}] /lexicon-debug`, info);
                 const p = info.persona;
                 const c = info.character;
-                const summary = `Persona pronouns: ${p.sets.length} set(s), inject=${p.willInject}. Character pronouns: ${c.sets.length} set(s), inject=${c.willInject}. Language preferences: persona=${Boolean(info.language.persona)}, characters=${Boolean(info.language.characters)}. Depth=${info.depth}. (Full detail in console.)`;
+                const summary = `Persona pronouns: ${p.sets.length} set(s), inject=${p.willInject}. Character pronouns: ${c.sets.length} set(s), inject=${c.willInject}. Language preferences: persona=${Boolean(info.language.persona)}, characters=${Boolean(info.language.characters)}. Depth=${info.depth}. Macro engine: ${info.macroEngineEnabled ? 'on' : 'OFF (macros will not resolve)'}. (Full detail in console.)`;
                 toastr.info(summary, 'Character Lexicon debug', { timeOut: 12000, extendedTimeOut: 20000 });
                 return summary;
             } catch (error) {

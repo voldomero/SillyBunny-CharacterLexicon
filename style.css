@@ -25,6 +25,13 @@
     opacity: 0.8;
 }
 
+/* No persona/character to write to (e.g. the Create New Character form): everything is locked. */
+.sbcl-editor.sbcl-disabled .sbcl-header,
+.sbcl-editor.sbcl-disabled .sbcl-multi-label,
+.sbcl-editor.sbcl-disabled .sbcl-option-label {
+    opacity: 0.5;
+}
+
 .sbcl-cell {
     flex: 1 1 0;
     min-width: 0;
@@ -45,11 +52,11 @@
     gap: 5px;
 }
 
-/* Trash button at the end of each set row; spacer keeps the header aligned. */
+/* Trash button at the end of each set row; spacer keeps the header aligned with the host button width. */
 .sbcl-remove,
 .sbcl-remove-spacer {
     flex: 0 0 auto;
-    width: 28px;
+    min-width: var(--sb-control-min-height, 30px);
     text-align: center;
 }
 
@@ -154,6 +161,32 @@
 
 .sbcl-language-fields small {
     opacity: 0.8;
+}
+
+/* Narrow screens: five inputs do not fit one row, so each set becomes a labelled two-column grid. */
+@media (max-width: 520px) {
+    .sbcl-editor .sbcl-header {
+        display: none;
+    }
+
+    .sbcl-editor .sbcl-set {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        align-items: end;
+    }
+
+    .sbcl-editor .sbcl-set .sbcl-cell::before {
+        content: attr(data-label);
+        display: block;
+        font-size: calc(var(--mainFontSize) * 0.75);
+        opacity: 0.8;
+        margin-bottom: 2px;
+    }
+
+    .sbcl-editor .sbcl-set .sbcl-remove {
+        justify-self: end;
+    }
 }
 
 /* Settings panel */

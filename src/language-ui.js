@@ -1,4 +1,4 @@
-import { t } from '../../../../../scripts/i18n.js';
+import { t, translate } from '../../../../../scripts/i18n.js';
 import {
     LANGUAGE_FIELDS, getLanguageProfileKey, getLanguagePreferences, setLanguagePreferences,
 } from './language.js';
@@ -27,10 +27,18 @@ export function createLanguageEditor(entity, onChange) {
     const enabled = document.createElement('input');
     enabled.type = 'checkbox';
     enabled.className = 'sbcl-language-enabled';
+    // The character editor sits inside form#form_create; Enter on a focused checkbox would save the card.
+    enabled.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.preventDefault(); });
     enabledLabel.append(enabled, document.createTextNode(t`Use these preferences in prompts`));
     fields.appendChild(enabledLabel);
 
     const commit = () => {
+        // Never write over storage that changed underneath the editor (e.g. a persona backup restore).
+        const key = getLanguageProfileKey(entity);
+        if (!key || key !== panel.dataset.profileKey || panel.dataset.stored !== JSON.stringify(getLanguagePreferences(entity, key))) {
+            refreshLanguageEditor(entity);
+            return;
+        }
         const profile = { enabled: enabled.checked };
         for (const { key } of LANGUAGE_FIELDS) {
             profile[key] = fields.querySelector(`[data-language-key="${key}"]`).value;
@@ -39,6 +47,7 @@ export function createLanguageEditor(entity, onChange) {
             refreshLanguageEditor(entity);
             return;
         }
+        panel.dataset.stored = JSON.stringify(getLanguagePreferences(entity, key));
         onChange();
     };
     enabled.addEventListener('change', commit);
@@ -47,13 +56,13 @@ export function createLanguageEditor(entity, onChange) {
         const fieldLabel = document.createElement('label');
         fieldLabel.className = 'sbcl-language-field';
         const labelText = document.createElement('span');
-        labelText.textContent = t`${label}`;
+        labelText.textContent = translate(label);
         const input = document.createElement('textarea');
         input.className = 'text_pole';
         input.rows = 2;
         input.dataset.languageKey = key;
         input.id = `${panel.id}_${key}`;
-        input.placeholder = t`${placeholder}`;
+        input.placeholder = translate(placeholder);
         fieldLabel.htmlFor = input.id;
         input.addEventListener('input', commit);
         fieldLabel.append(labelText, input);
@@ -71,14 +80,16 @@ export function createLanguageEditor(entity, onChange) {
     return panel;
 }
 
-export function refreshLanguageEditor(entity) {
+/** hasContext=false renders an empty, locked editor (e.g. the Create New Character form). */
+export function refreshLanguageEditor(entity, hasContext = true) {
     const panel = document.getElementById(panelId(entity));
     if (!panel) return;
-    const key = getLanguageProfileKey(entity);
+    const key = hasContext ? getLanguageProfileKey(entity) : '';
     if (panel.dataset.profileKey !== key) panel.open = false;
     panel.dataset.profileKey = key;
     panel.querySelector('fieldset').disabled = !key;
-    const profile = getLanguagePreferences(entity);
+    const profile = getLanguagePreferences(entity, key);
+    panel.dataset.stored = JSON.stringify(profile);
     panel.querySelector('.sbcl-language-enabled').checked = profile.enabled;
     for (const { key: field } of LANGUAGE_FIELDS) {
         const input = panel.querySelector(`[data-language-key="${field}"]`);
