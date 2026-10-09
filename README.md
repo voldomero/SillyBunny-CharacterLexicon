@@ -173,10 +173,12 @@ The uninstall cleanup removes language preferences, character pronouns, and inje
 - **Pronouns do not vary:** Use two or more sets, select **Rotate**, and check the profile's directive setting. **Always on** does not generate a directive for a single set.
 - **The model ignores preferences:** Run `/lexicon-debug` to inspect the instructions. Check **Use these preferences in prompts**, directive settings, and `%ACTIVE%` in custom pronoun templates. If the instructions are present, check conflicting prompt text or try depth `0`–`1`. Instructions do not guarantee model compliance.
 
-For repeated diagnostics, enable **Log directive to console (debug)** in the extension settings. Report reproducible problems through [GitHub Issues](https://github.com/voldomero/SillyBunny-CharacterLexicon/issues).
+For repeated diagnostics, enable **Log directive to console (debug)** in the extension settings.
+Report reproducible problems through [GitHub Issues](https://github.com/voldomero/SillyBunny-CharacterLexicon/issues).
 
 ## Credits & License
 
-Based on [SillyTavern Pronouns](https://github.com/SillyTavern/SillyTavern-Pronouns) by [Wolfsblvt](https://github.com/Wolfsblvt), with contributions from [Ana (phampyk)](https://github.com/phampyk). Adapted and expanded for [SillyBunny](https://github.com/SillyBunnyTeam/SillyBunny).
+Based on [SillyTavern Pronouns](https://github.com/SillyTavern/SillyTavern-Pronouns) by [Wolfsblvt](https://github.com/Wolfsblvt), with contributions from [Ana (phampyk)](https://github.com/phampyk).
+Adapted and expanded for [SillyBunny](https://github.com/SillyBunnyTeam/SillyBunny).
 
 Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. See [LICENSE](LICENSE).
