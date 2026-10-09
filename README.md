@@ -1,5 +1,7 @@
 # SillyBunny Character Lexicon
 
+> Pronouns, names, and preferred terms for characters and personas.
+
 ## Table of Contents
 
 - [About](#about)
